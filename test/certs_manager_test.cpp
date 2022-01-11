@@ -3,6 +3,7 @@
 #include "certificate.hpp"
 #include "certs_manager.hpp"
 #include "csr.hpp"
+#include "lsp.hpp"
 
 #include <openssl/bio.h>
 #include <openssl/ossl_typ.h>
@@ -227,6 +228,11 @@ class MainApp
     phosphor::certs::Manager* manager;
     phosphor::certs::CSR* csr_;
 };
+
+inline int emptyPasswordCallback(char *, int, int, void *)
+{
+    return 0;
+}
 
 /** @brief Check if server install routine is invoked for server setup
  */
@@ -1425,5 +1431,127 @@ TEST_F(TestCertificates, TestGenerateRSAPrivateKeyFile)
                     std::move(installPath));
     EXPECT_TRUE(fs::exists(rsaPrivateKeyFilePath));
 }
+
+TEST_F(TestCertificates, TestGivenHttpsServerManagerInitializedAndNoPassphrase_WhenReadDefaultPrivateKey_ContentsAreNotAccessible)
+{
+    std::string endpoint("https");
+    std::string unit;
+    CertificateType type = CertificateType::Server;
+    std::string installPath(certDir + "/" + certificateFile);
+    auto objPath = std::string(objectNamePrefix) + '/' +
+                   certificateTypeToString(type) + '/' + endpoint;
+    auto event = sdeventplus::Event::get_default();
+
+    Manager manager(
+        bus, event, objPath.c_str(), type, std::move(unit), 
+        std::move(installPath));
+
+    auto fp = fopen(rsaPrivateKeyFilePath.c_str(), "r");
+    auto pkey = PEM_read_PrivateKey(fp, nullptr, emptyPasswordCallback, nullptr);
+    fclose(fp);
+
+    EXPECT_EQ(pkey, nullptr);
+
+    if (pkey) {
+        EVP_PKEY_free(pkey);
+    }
+
+    fs::remove(rsaPrivateKeyFilePath);
+}
+
+TEST_F(TestCertificates, TestGivenHttpsServerManagerInitializedAndLspPassphrase_WhenReadDefaultPrivateKey_ContentsAreAccessible)
+{
+    std::string endpoint("https");
+    std::string unit;
+    CertificateType type = CertificateType::Server;
+    std::string installPath(certDir + "/" + certificateFile);
+    auto objPath = std::string(objectNamePrefix) + '/' +
+                   certificateTypeToString(type) + '/' + endpoint;
+    auto event = sdeventplus::Event::get_default();
+
+    Manager manager(
+        bus, event, objPath.c_str(), type, std::move(unit), 
+        std::move(installPath));
+
+    auto fp = fopen(rsaPrivateKeyFilePath.c_str(), "r");
+    auto pkey = PEM_read_PrivateKey(
+        fp, nullptr, lsp::passwordCallback, nullptr);
+    fclose(fp);
+
+    EXPECT_NE(pkey, nullptr);
+
+    if (pkey) {
+        EVP_PKEY_free(pkey);
+    }
+}
+
+TEST_F(TestCertificates, TestGivenHttpsServerManagerInitializedAndCSRGeneratedAndCertInstalled_WhenReadCredentialFile_CertificateIsUnchangedAndPrivateKeyIsAccessible)
+{
+    std::string endpoint("https");
+    std::string unit;
+    CertificateType type = CertificateType::Server;
+    std::string installPath(certDir + "/" + certificateFile);
+    std::string CSRPath(certDir + "/" + CSRFile);
+    std::string privateKeyPath(certDir + "/" + privateKeyFile);
+    std::vector<std::string> alternativeNames{"localhost1", "localhost2"};
+    std::string challengePassword("Password");
+    std::string city("HYB");
+    std::string commonName("abc.com");
+    std::string contactPerson("Admin");
+    std::string country("IN");
+    std::string email("jp@2137.pl");
+    std::string givenName("givenName");
+    std::string initials("G");
+    int64_t keyBitLength(2048);
+    std::string keyCurveId("0");
+    std::string keyPairAlgorithm("RSA");
+    std::vector<std::string> keyUsage{"serverAuth", "clientAuth"};
+    std::string organization("organization");
+    std::string organizationalUnit("orgUnit");
+    std::string state("TS");
+    std::string surname("surname");
+    std::string unstructuredName("unstructuredName");
+    auto objPath = std::string(objectNamePrefix) + '/' +
+        certificateTypeToString(type) + '/' + endpoint;
+    auto event = sdeventplus::Event::get_default();
+
+    Manager manager(
+        bus, event, objPath.c_str(), type, std::move(unit), 
+        std::move(installPath));
+
+    manager.generateCSR(
+        alternativeNames, challengePassword, city, commonName,
+        contactPerson, country, email, givenName, initials, keyBitLength,
+        keyCurveId, keyPairAlgorithm, keyUsage, organization,
+        organizationalUnit, state, surname, unstructuredName);
+    
+    createNewCertificate();
+
+    auto fp = fopen(certificateFile.c_str(), "r");
+    auto x509Orig = PEM_read_X509(fp, nullptr, nullptr, nullptr);
+    fclose(fp);
+
+    manager.install(certificateFile);
+
+    fp = fopen(installPath.c_str(), "r");
+    auto x509 = PEM_read_X509(fp, nullptr, nullptr, nullptr);
+    fclose(fp);
+
+    fp = fopen(certificateFile.c_str(), "r");
+    auto pkey = PEM_read_PrivateKey(
+        fp, nullptr, lsp::passwordCallback, nullptr);
+    fclose(fp);
+
+    EXPECT_NE(pkey, nullptr);
+    EXPECT_EQ(X509_cmp(x509, x509Orig), 0);
+
+    X509_free(x509);
+    X509_free(x509Orig);
+    if (pkey) {
+        EVP_PKEY_free(pkey);
+    }
+}
+
 } // namespace
 } // namespace phosphor::certs
+

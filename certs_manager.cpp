@@ -1,6 +1,7 @@
 #include "config.h"
 
 #include "certs_manager.hpp"
+#include "lsp.hpp"
 
 #include <openssl/asn1.h>
 #include <openssl/bn.h>
@@ -672,8 +673,8 @@ void Manager::writePrivateKey(const EVPPkeyPtr& pKey,
         log<level::ERR>("Error occurred creating private key file");
         elog<InternalFailure>();
     }
-    int ret =
-        PEM_write_PrivateKey(fp, pKey.get(), nullptr, nullptr, 0, 0, nullptr);
+    int ret = PEM_write_PrivateKey(
+        fp, pKey.get(), EVP_aes_256_cbc(), NULL, 0, lsp::passwordCallback, NULL);
     std::fclose(fp);
     if (ret == 0)
     {
@@ -850,7 +851,8 @@ EVPPkeyPtr Manager::getRSAKeyPair(const int64_t keyBitLength)
     }
 
     EVPPkeyPtr privateKey(
-        PEM_read_PrivateKey(privateKeyFile, nullptr, nullptr, nullptr),
+        PEM_read_PrivateKey(
+            privateKeyFile, nullptr, lsp::passwordCallback, nullptr),
         ::EVP_PKEY_free);
     std::fclose(privateKeyFile);
 

@@ -11,6 +11,10 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <filesystem>
+#include <optional>
+#include <phosphor-logging/elog.hpp>
+
 #include <xyz/openbmc_project/Certs/Certificate/server.hpp>
 #include <xyz/openbmc_project/Certs/Replace/server.hpp>
 #include <xyz/openbmc_project/Object/Delete/server.hpp>
@@ -136,8 +140,11 @@ class Certificate : public internal::CertificateInterface
 
     /**
      * @brief Update certificate storage.
+     * 
+     * @param[in] certSrcFilePath - Optional path to source certificate file, certFilePath is used if no value provided.
      */
-    void storageUpdate();
+    void storageUpdate(
+        std::optional<std::string> certSrcFilePath = std::nullopt);
 
     /**
      * @brief Delete the certificate

@@ -1,8 +1,7 @@
 #include "config.h"
-
 #include "certificate.hpp"
-
 #include "certs_manager.hpp"
+#include "lsp.hpp"
 
 #include <openssl/asn1.h>
 #include <openssl/bio.h>
@@ -440,13 +439,13 @@ void Certificate::install(const std::string& certSrcFilePath)
         }
     }
 
-    storageUpdate();
+    storageUpdate({certSrcFilePath});
 
     // Keep certificate ID
-    certId = generateCertId(certFilePath);
+    certId = generateCertId(certSrcFilePath);
 
     // Parse the certificate file and populate properties
-    populateProperties(certFilePath);
+    populateProperties(certSrcFilePath);
 
     // restart watch
     if (certWatch != nullptr)
@@ -492,7 +491,7 @@ bool Certificate::isSame(const std::string& certPath)
     return getCertId() == generateCertId(certPath);
 }
 
-void Certificate::storageUpdate()
+void Certificate::storageUpdate(std::optional<std::string> certSrcFilePath)
 {
     if (certType == CertificateType::Authority)
     {
@@ -503,8 +502,9 @@ void Certificate::storageUpdate()
             if (!certFilePath.empty() &&
                 fs::is_regular_file(fs::path(certFilePath)))
             {
-                certFileX509Path =
-                    generateAuthCertFileX509Path(certFilePath, certInstallPath);
+                certFileX509Path = generateAuthCertFileX509Path(
+                    certSrcFilePath ? *certSrcFilePath : certFilePath, 
+                    certInstallPath);
                 fs::create_symlink(fs::path(certFilePath),
                                    fs::path(certFileX509Path));
             }
@@ -618,7 +618,7 @@ internal::X509Ptr Certificate::loadCert(const std::string& filePath)
                         entry("FILE=%s", filePath.c_str()));
         elog<InternalFailure>();
     }
-
+    
     X509* x509 = cert.get();
     if (!PEM_read_bio_X509(bioCert.get(), &x509, nullptr, nullptr))
     {
@@ -641,7 +641,8 @@ void Certificate::checkAndAppendPrivateKey(const std::string& filePath)
     BIO_read_filename(keyBio.get(), filePath.c_str());
 
     EVPPkeyPtr priKey(
-        PEM_read_bio_PrivateKey(keyBio.get(), nullptr, nullptr, nullptr),
+        PEM_read_bio_PrivateKey(
+            keyBio.get(), nullptr, lsp::passwordCallback, nullptr),
         ::EVP_PKEY_free);
     if (!priKey)
     {
@@ -728,7 +729,7 @@ bool Certificate::compareKeys(const std::string& filePath)
     BIO_read_filename(keyBio.get(), filePath.c_str());
 
     EVPPkeyPtr priKey(
-        PEM_read_bio_PrivateKey(keyBio.get(), nullptr, nullptr, nullptr),
+        PEM_read_bio_PrivateKey(keyBio.get(), nullptr, lsp::passwordCallback, nullptr),
         ::EVP_PKEY_free);
     if (!priKey)
     {
