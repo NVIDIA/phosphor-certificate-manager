@@ -18,8 +18,6 @@
 #include <vector>
 #include <xyz/openbmc_project/Certs/CSR/Create/server.hpp>
 #include <xyz/openbmc_project/Certs/Install/server.hpp>
-#include <xyz/openbmc_project/Certs/InstallAll/server.hpp>
-#include <xyz/openbmc_project/Certs/ReplaceAll/server.hpp>
 #include <xyz/openbmc_project/Collection/DeleteAll/server.hpp>
 
 namespace phosphor::certs
@@ -30,9 +28,7 @@ namespace internal
 using ManagerInterface = sdbusplus::server::object_t<
     sdbusplus::xyz::openbmc_project::Certs::server::Install,
     sdbusplus::xyz::openbmc_project::Certs::CSR::server::Create,
-    sdbusplus::xyz::openbmc_project::Collection::server::DeleteAll,
-    sdbusplus::xyz::openbmc_project::Certs::server::InstallAll,
-    sdbusplus::xyz::openbmc_project::Certs::server::ReplaceAll>;
+    sdbusplus::xyz::openbmc_project::Collection::server::DeleteAll>;
 }
 
 class Manager : public internal::ManagerInterface
@@ -76,27 +72,6 @@ class Manager : public internal::ManagerInterface
      *  @return Certificate object path.
      */
     std::string install(const std::string filePath) override;
-
-    /** @brief Implementation for InstallAll
-     *  Install the authority list and restart the associated services.
-     *
-     *  @param[in] path - Path of the file that contains a list of root
-     * certificates.
-     *
-     *  @return D-Bus object path to created objects.
-     */
-    std::vector<sdbusplus::message::object_path>
-        installAll(std::string path) override;
-
-    /** @brief Implementation for ReplaceAll
-     *  Replace the current authority lists and restart the associated services.
-     *
-     *  @param[in] path - Path of file that contains multiple root certificates.
-     *
-     *  @return D-Bus object path to created objects.
-     */
-    std::vector<sdbusplus::message::object_path>
-        replaceAll(std::string filePath) override;
 
     /** @brief Implementation for DeleteAll
      *  Delete all objects in the collection.
@@ -200,12 +175,6 @@ class Manager : public internal::ManagerInterface
      */
     std::vector<std::unique_ptr<Certificate>>& getCertificates();
 
-    /** @brief Systemd unit reload or reset helper function
-     *  Reload if the unit supports it and use a restart otherwise.
-     *  @param[in] unit - service need to reload.
-     */
-    virtual void reloadOrReset(const std::string& unit);
-
   private:
     void generateCSRHelper(std::vector<std::string> alternativeNames,
                            std::string challengePassword, std::string city,
@@ -292,6 +261,12 @@ class Manager : public internal::ManagerInterface
      * symbolic links, etc.).
      */
     void storageUpdate();
+
+    /** @brief Systemd unit reload or reset helper function
+     *  Reload if the unit supports it and use a restart otherwise.
+     *  @param[in] unit - service need to reload.
+     */
+    void reloadOrReset(const std::string& unit);
 
     /** @brief Check if provided certificate is unique across all certificates
      * on the internal list.
