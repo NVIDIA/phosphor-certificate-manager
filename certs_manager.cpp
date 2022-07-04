@@ -309,8 +309,6 @@ std::vector<sdbusplus::message::object_path>
         elog<NotAllowed>(NotAllowedReason("Certificates limit reached"));
     }
 
-    log<level::INFO>("Starts authority list install");
-
     fs::path authorityStore(certInstallPath);
     fs::path authoritiesListFile =
         authorityStore / defaultAuthoritiesListFileName;
@@ -363,7 +361,6 @@ std::vector<sdbusplus::message::object_path>
         objects.emplace_back(certificate->getObjectPath());
     }
 
-    log<level::INFO>("Finishes authority list install; reload units starts");
     reloadOrReset(unitToRestart);
     return objects;
 }
