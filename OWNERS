@@ -35,6 +35,7 @@ owners:
 - devenrao@in.ibm.com
 - ed@tanous.net
 - ojayanth@in.ibm.com
+- nanzhoumails@gmail.com
 
 reviewers:
 - deepak.kodihalli.83@gmail.com
@@ -48,9 +49,9 @@ openbmc:
 - name: Devender Rao
   email: devenrao@in.ibm.com
   discord: devender
-- name: Ed Tanous
-  email: ed@tanous.net
-  discord: edtanous
 - name: Jayanth Othayoth
   email: ojayanth@in.ibm.com
   discord: Jayanth
+- name: Nan Zhou
+  email: nanzhoumails@gmail.com
+  discord: Nan Zhou

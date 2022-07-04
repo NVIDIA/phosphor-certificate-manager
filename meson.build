@@ -12,28 +12,22 @@ project(
 
 cpp = meson.get_compiler('cpp')
 
-sdbusplus_dep = dependency(
-    'sdbusplus',
-    fallback: ['sdbusplus', 'sdbusplus_dep'],
-)
+sdbusplus_dep = dependency('sdbusplus')
+sdeventplus_dep = dependency('sdeventplus')
+phosphor_dbus_interfaces_dep = dependency('phosphor-dbus-interfaces')
+phosphor_logging_dep = dependency('phosphor-logging')
 
-sdeventplus_dep = dependency(
-    'sdeventplus',
-    fallback: ['sdeventplus', 'sdeventplus_dep'],
-)
-
-phosphor_dbus_interfaces_dep = dependency(
-    'phosphor-dbus-interfaces',
-    fallback: [
-        'phosphor-dbus-interfaces',
-        'phosphor_dbus_interfaces_dep'
-    ],
-)
-
-phosphor_logging_dep = dependency(
-    'phosphor-logging',
-    fallback: ['phosphor-logging', 'phosphor_logging_dep'],
-)
+cli11_dep = dependency('cli11', required: false)
+has_cli11 = meson.get_compiler('cpp').has_header_symbol(
+  'CLI/CLI.hpp',
+  'CLI::App',
+  dependencies: cli11_dep,
+  required: false)
+if not has_cli11
+  cli11_proj = subproject('cli11', required: false)
+  assert(cli11_proj.found(), 'CLI11 is required')
+  cli11_dep = cli11_proj.get_variable('CLI11_dep')
+endif
 
 systemd_dep = dependency('systemd')
 openssl_dep = dependency('openssl')
@@ -42,6 +36,10 @@ config_data = configuration_data()
 config_data.set(
     'authority_limit',
      get_option('authority-limit')
+)
+config_data.set(
+    'authorities_list_name',
+     get_option('authorities-list-name')
 )
 
 configure_file(
@@ -56,6 +54,7 @@ phosphor_certificate_deps = [
     phosphor_logging_dep,
     sdbusplus_dep,
     sdeventplus_dep,
+    cli11_dep,
 ]
 
 cert_manager_lib = static_library(
@@ -66,6 +65,7 @@ cert_manager_lib = static_library(
         'certs_manager.cpp',
         'csr.cpp',
         'watch.cpp',
+        'x509_utils.cpp',
     ],
     dependencies: phosphor_certificate_deps,
 )
