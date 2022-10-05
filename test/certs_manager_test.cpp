@@ -77,7 +77,7 @@ class TestCertificates : public ::testing::Test
         CSRFile = "domain.csr";
         privateKeyFile = "privkey.pem";
         rsaPrivateKeyFilePath = certDir + "/.rsaprivkey.pem";
-        std::string cmd = "openssl req -x509 -sha256 -newkey rsa:2048 ";
+        std::string cmd = "openssl req -x509 -sha256 -newkey rsa:3072 ";
         cmd += "-keyout cert.pem -out cert.pem -days 365000 -nodes";
         cmd += " -subj /O=openbmc-project.xyz/CN=localhost";
 
@@ -109,12 +109,12 @@ class TestCertificates : public ::testing::Test
         ASSERT_EQ(std::system("echo 1000 > demoCA/serial"), 0);
         ASSERT_EQ(
             std::system(
-                "openssl req -x509 -sha256 -newkey rsa:2048 -keyout "
+                "openssl req -x509 -sha256 -newkey rsa:3072 -keyout "
                 "demoCA/private/cakey.pem -out demoCA/cacert.pem -nodes "
                 "-subj /O=openbmc-project.xyz/C=US/ST=CA/CN=localhost-ca"),
             0);
         ASSERT_EQ(std::system(
-                      "openssl req -new -newkey rsa:2048 -nodes -keyout "
+                      "openssl req -new -newkey rsa:3072 -nodes -keyout "
                       "demoCA/server.key -out demoCA/server.csr -subj "
                       "/O=openbmc-project.xyz/C=US/ST=CA/CN=localhost-server"),
                   0);
@@ -829,7 +829,7 @@ class TestInvalidCertificate : public ::testing::Test
         fs::create_directories(certDir);
         certificateFile = "cert.pem";
         keyFile = "key.pem";
-        std::string cmd = "openssl req -x509 -sha256 -newkey rsa:2048 ";
+        std::string cmd = "openssl req -x509 -sha256 -newkey rsa:3072 ";
         cmd += "-keyout key.pem -out cert.pem -days 3650 ";
         cmd += "-subj "
                "/O=openbmc-project.xyz/CN=localhost"
@@ -979,7 +979,7 @@ TEST_F(TestCertificates, TestGenerateCSR)
     std::string email("admin@in.ibm.com");
     std::string givenName("givenName");
     std::string initials("G");
-    int64_t keyBitLength(2048);
+    int64_t keyBitLength(3072);
     std::string keyCurveId("0");
     std::string keyPairAlgorithm("RSA");
     std::vector<std::string> keyUsage{"serverAuth", "clientAuth"};
@@ -1332,7 +1332,7 @@ TEST_F(TestCertificates, TestRSAKeyFileNotPresentCase)
     std::string email("admin@in.ibm.com");
     std::string givenName("givenName");
     std::string initials("G");
-    int64_t keyBitLength(2048);
+    int64_t keyBitLength(3072);
     std::string keyCurveId("secp521r1");
     std::string keyPairAlgorithm("RSA");
     std::vector<std::string> keyUsage{"serverAuth", "clientAuth"};
@@ -1383,7 +1383,7 @@ TEST_F(TestCertificates, TestRSAKeyFromRSAKeyFileIsWrittenIntoPrivateKeyFile)
     std::string email("admin@in.ibm.com");
     std::string givenName("givenName");
     std::string initials("G");
-    int64_t keyBitLength(2048);
+    int64_t keyBitLength(3072);
     std::string keyCurveId("secp521r1");
     std::string keyPairAlgorithm("RSA");
     std::vector<std::string> keyUsage{"serverAuth", "clientAuth"};

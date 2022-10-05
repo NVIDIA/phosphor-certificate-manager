@@ -63,8 +63,8 @@ using X509ReqPtr = std::unique_ptr<X509_REQ, decltype(&::X509_REQ_free)>;
 using EVPPkeyPtr = std::unique_ptr<EVP_PKEY, decltype(&::EVP_PKEY_free)>;
 using BignumPtr = std::unique_ptr<BIGNUM, decltype(&::BN_free)>;
 
-constexpr int supportedKeyBitLength = 2048;
-constexpr int defaultKeyBitLength = 2048;
+constexpr int supportedKeyBitLength = 3072;
+constexpr int defaultKeyBitLength = 3072;
 // secp224r1 is equal to RSA 2048 KeyBitLength. Refer RFC 5349
 constexpr auto defaultKeyCurveID = "secp224r1";
 } // namespace
@@ -833,7 +833,7 @@ EVPPkeyPtr Manager::getRSAKeyPair(const int64_t keyBitLength)
         log<level::ERR>(
             "Given Key bit length is not supported",
             entry("GIVENKEYBITLENGTH=%d", keyBitLength),
-            entry("SUPPORTEDKEYBITLENGTH=%d", supportedKeyBitLength));
+            entry("SUPPORTEDKEYBITLENGTH<=%d", supportedKeyBitLength));
         elog<InvalidArgument>(
             Argument::ARGUMENT_NAME("KEYBITLENGTH"),
             Argument::ARGUMENT_VALUE(std::to_string(keyBitLength).c_str()));
