@@ -1,5 +1,7 @@
 #include "config.h"
+
 #include "certificate.hpp"
+
 #include "certs_manager.hpp"
 #include "lsp.hpp"
 #include "x509_utils.hpp"
@@ -198,6 +200,10 @@ std::string
     {
         return generateAuthCertFilePath(certSrcFilePath);
     }
+    else if (certType == CertificateType::SecureBootDatabase)
+    {
+        return certInstallPath + "/" + fs::path(objectPath).filename().c_str();
+    }
     else
     {
         return certInstallPath;
@@ -224,6 +230,8 @@ Certificate::Certificate(sdbusplus::bus::bus& bus, const std::string& objPath,
     typeFuncMap[CertificateType::Server] = installHelper;
     typeFuncMap[CertificateType::Client] = installHelper;
     typeFuncMap[CertificateType::Authority] = [](const std::string&) {};
+    typeFuncMap[CertificateType::SecureBootDatabase] = [](const std::string&) {
+    };
 
     auto appendPrivateKey = [this](const std::string& filePath) {
         checkAndAppendPrivateKey(filePath);
@@ -232,12 +240,20 @@ Certificate::Certificate(sdbusplus::bus::bus& bus, const std::string& objPath,
     appendKeyMap[CertificateType::Server] = appendPrivateKey;
     appendKeyMap[CertificateType::Client] = appendPrivateKey;
     appendKeyMap[CertificateType::Authority] = [](const std::string&) {};
+    appendKeyMap[CertificateType::SecureBootDatabase] = [](const std::string&) {
+    };
 
     // Generate certificate file path
     certFilePath = generateCertFilePath(uploadPath);
 
     // install the certificate
     install(uploadPath);
+
+    if (certType == CertificateType::SecureBootDatabase)
+    {
+        ownerIntf = std::make_unique<internal::UefiSignatureOwnerIntf>(
+            bus, objectPath, certFilePath + ".owner");
+    }
 
     this->emit_object_added();
 }
@@ -373,7 +389,7 @@ void Certificate::storageUpdate(std::optional<std::string> certSrcFilePath)
                 fs::is_regular_file(fs::path(certFilePath)))
             {
                 certFileX509Path = generateAuthCertFileX509Path(
-                    certSrcFilePath ? *certSrcFilePath : certFilePath, 
+                    certSrcFilePath ? *certSrcFilePath : certFilePath,
                     certInstallPath);
                 fs::create_symlink(fs::path(certFilePath),
                                    fs::path(certFileX509Path));
@@ -479,10 +495,9 @@ void Certificate::checkAndAppendPrivateKey(const std::string& filePath)
     }
     BIO_read_filename(keyBio.get(), filePath.c_str());
 
-    EVPPkeyPtr priKey(
-        PEM_read_bio_PrivateKey(
-            keyBio.get(), nullptr, lsp::passwordCallback, nullptr),
-        ::EVP_PKEY_free);
+    EVPPkeyPtr priKey(PEM_read_bio_PrivateKey(keyBio.get(), nullptr,
+                                              lsp::passwordCallback, nullptr),
+                      ::EVP_PKEY_free);
     if (!priKey)
     {
         log<level::INFO>("Private key not present in file",
@@ -567,9 +582,9 @@ bool Certificate::compareKeys(const std::string& filePath)
     }
     BIO_read_filename(keyBio.get(), filePath.c_str());
 
-    EVPPkeyPtr priKey(
-        PEM_read_bio_PrivateKey(keyBio.get(), nullptr, lsp::passwordCallback, nullptr),
-        ::EVP_PKEY_free);
+    EVPPkeyPtr priKey(PEM_read_bio_PrivateKey(keyBio.get(), nullptr,
+                                              lsp::passwordCallback, nullptr),
+                      ::EVP_PKEY_free);
     if (!priKey)
     {
         log<level::ERR>("Error occurred during PEM_read_bio_PrivateKey",
@@ -597,5 +612,10 @@ bool Certificate::compareKeys(const std::string& filePath)
 void Certificate::delete_()
 {
     manager.deleteCertificate(this);
+}
+
+std::string Certificate::getObjectPath() const
+{
+    return objectPath;
 }
 } // namespace phosphor::certs

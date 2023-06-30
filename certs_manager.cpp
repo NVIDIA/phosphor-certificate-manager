@@ -1,6 +1,7 @@
 #include "config.h"
 
 #include "certs_manager.hpp"
+
 #include "lsp.hpp"
 
 #include <openssl/asn1.h>
@@ -84,7 +85,8 @@ Manager::Manager(sdbusplus::bus::bus& bus, sdeventplus::Event& event,
         fs::path certDirectory;
         try
         {
-            if (certType == CertificateType::Authority)
+            if (certType == CertificateType::Authority ||
+                certType == CertificateType::SecureBootDatabase)
             {
                 certDirectory = certInstallPath;
             }
@@ -113,7 +115,8 @@ Manager::Manager(sdbusplus::bus::bus& bus, sdeventplus::Event& event,
         }
 
         // Generating RSA private key file if certificate type is server/client
-        if (certType != CertificateType::Authority)
+        if (certType == CertificateType::Server ||
+            certType == CertificateType::Client)
         {
             createRSAPrivateKeyFile();
         }
@@ -122,7 +125,8 @@ Manager::Manager(sdbusplus::bus::bus& bus, sdeventplus::Event& event,
         createCertificates();
 
         // watch is not required for authority certificates
-        if (certType != CertificateType::Authority)
+        if (certType == CertificateType::Server ||
+            certType == CertificateType::Client)
         {
             // watch for certificate file create/replace
             certWatchPtr = std::make_unique<
@@ -153,7 +157,7 @@ Manager::Manager(sdbusplus::bus::bus& bus, sdeventplus::Event& event,
                 }
             });
         }
-        else
+        else if (certType == CertificateType::Authority)
         {
             try
             {
@@ -180,6 +184,11 @@ Manager::Manager(sdbusplus::bus::bus& bus, sdeventplus::Event& event,
                                 entry("ERROR_STR=%s", ex.what()));
             }
         }
+        else if (certType == CertificateType::SecureBootDatabase)
+        {
+            sigManager = std::make_unique<phosphor::certs::SigManager>(
+                bus, event, path, certType, installPath + "/signature");
+        }
     }
     catch (const std::exception& ex)
     {
@@ -190,9 +199,13 @@ Manager::Manager(sdbusplus::bus::bus& bus, sdeventplus::Event& event,
 
 std::string Manager::install(const std::string filePath)
 {
-    if (certType != CertificateType::Authority && !installedCerts.empty())
+    if (certType == CertificateType::Server ||
+        certType == CertificateType::Client)
     {
-        elog<NotAllowed>(NotAllowedReason("Certificate already exist"));
+        if (!installedCerts.empty())
+        {
+            elog<NotAllowed>(NotAllowedReason("Certificate already exist"));
+        }
     }
     else if (certType == CertificateType::Authority &&
              installedCerts.size() >= maxNumAuthorityCertificates)
@@ -203,12 +216,33 @@ std::string Manager::install(const std::string filePath)
     std::string certObjectPath;
     if (isCertificateUnique(filePath))
     {
-        certObjectPath = objectPath + '/' + std::to_string(certIdCounter);
-        installedCerts.emplace_back(std::make_unique<Certificate>(
-            bus, certObjectPath, certType, certInstallPath, filePath,
-            certWatchPtr.get(), *this));
+        if (certType == CertificateType::SecureBootDatabase)
+        {
+            auto certificateId = allocId();
+            certObjectPath =
+                objectPath + "/certs/" + std::to_string(certificateId);
+            try
+            {
+                installedCerts.emplace_back(std::make_unique<Certificate>(
+                    bus, certObjectPath, certType, certInstallPath, filePath,
+                    certWatchPtr.get(), *this));
+            }
+            catch (const std::exception& ex)
+            {
+                log<level::ERR>("Error in certificate constructor",
+                                entry("ERROR_STR=%s", ex.what()));
+                releaseId(certificateId);
+            }
+        }
+        else
+        {
+            certObjectPath = objectPath + '/' + std::to_string(certIdCounter);
+            certIdCounter++;
+            installedCerts.emplace_back(std::make_unique<Certificate>(
+                bus, certObjectPath, certType, certInstallPath, filePath,
+                certWatchPtr.get(), *this));
+        }
         reloadOrReset(unitToRestart);
-        certIdCounter++;
     }
     else
     {
@@ -228,6 +262,16 @@ void Manager::deleteAll()
     installedCerts.clear();
     storageUpdate();
     reloadOrReset(unitToRestart);
+    if (certType == CertificateType::SecureBootDatabase)
+    {
+        certIdUnused.clear();
+        certIdCounter = 1;
+    }
+
+    if (sigManager)
+    {
+        sigManager->deleteAll();
+    }
 }
 
 void Manager::deleteCertificate(const Certificate* const certificate)
@@ -239,6 +283,12 @@ void Manager::deleteCertificate(const Certificate* const certificate)
                      });
     if (certIt != installedCerts.end())
     {
+        if (certType == CertificateType::SecureBootDatabase)
+        {
+            auto certificateId =
+                std::stoull(fs::path(certificate->getObjectPath()).filename());
+            releaseId(certificateId);
+        }
         installedCerts.erase(certIt);
         storageUpdate();
         reloadOrReset(unitToRestart);
@@ -673,8 +723,8 @@ void Manager::writePrivateKey(const EVPPkeyPtr& pKey,
         log<level::ERR>("Error occurred creating private key file");
         elog<InternalFailure>();
     }
-    int ret = PEM_write_PrivateKey(
-        fp, pKey.get(), EVP_aes_256_cbc(), NULL, 0, lsp::passwordCallback, NULL);
+    int ret = PEM_write_PrivateKey(fp, pKey.get(), EVP_aes_256_cbc(), NULL, 0,
+                                   lsp::passwordCallback, NULL);
     std::fclose(fp);
     if (ret == 0)
     {
@@ -787,6 +837,64 @@ void Manager::createCertificates()
             }
         }
     }
+    else if (certType == CertificateType::SecureBootDatabase)
+    {
+        // Check whether install path is a directory.
+        if (!fs::is_directory(certInstallPath))
+        {
+            log<level::ERR>("Certificate installation path exists and it is "
+                            "not a directory");
+            elog<InternalFailure>();
+            return;
+        }
+
+        for (auto& path : fs::directory_iterator(certInstallPath))
+        {
+            try
+            {
+                // Assume here any regular file located in certificate directory
+                // contains certificates body. Do not want to use soft links
+                // would add value.
+                if (fs::is_regular_file(path))
+                {
+                    if (!path.path().extension().empty())
+                    {
+                        continue;
+                    }
+                    auto certificateId = std::stoull(path.path().filename());
+                    allocId(certificateId);
+                    certObjectPath =
+                        objectPath + "/certs/" + std::to_string(certificateId);
+                    try
+                    {
+                        installedCerts.emplace_back(
+                            std::make_unique<Certificate>(
+                                bus, certObjectPath, certType, certInstallPath,
+                                path.path(), certWatchPtr.get(), *this));
+                    }
+                    catch (const std::exception& ex)
+                    {
+                        log<level::ERR>("Error in certificate constructor",
+                                        entry("ERROR_STR=%s", ex.what()));
+                        releaseId(certificateId);
+                    }
+                }
+            }
+            catch (const InternalFailure& e)
+            {
+                report<InternalFailure>();
+            }
+            catch (const InvalidCertificate& e)
+            {
+                report<InvalidCertificate>(InvalidCertificateReason(
+                    "Existing certificate file is corrupted"));
+            }
+            catch (const std::invalid_argument& e)
+            {
+                report<InternalFailure>();
+            }
+        }
+    }
     else if (fs::exists(certInstallPath))
     {
         try
@@ -850,10 +958,9 @@ EVPPkeyPtr Manager::getRSAKeyPair(const int64_t keyBitLength)
         elog<InternalFailure>();
     }
 
-    EVPPkeyPtr privateKey(
-        PEM_read_PrivateKey(
-            privateKeyFile, nullptr, lsp::passwordCallback, nullptr),
-        ::EVP_PKEY_free);
+    EVPPkeyPtr privateKey(PEM_read_PrivateKey(privateKeyFile, nullptr,
+                                              lsp::passwordCallback, nullptr),
+                          ::EVP_PKEY_free);
     std::fclose(privateKeyFile);
 
     if (!privateKey)
@@ -937,6 +1044,38 @@ bool Manager::isCertificateUnique(const std::string& filePath,
     {
         return true;
     }
+}
+
+uint64_t Manager::allocId(uint64_t id)
+{
+    // Have designated ID
+    if (id != 0)
+    {
+        // Update the Unused IDs
+        for (; certIdCounter <= id; certIdCounter++)
+        {
+            certIdUnused.insert(certIdCounter);
+        }
+        certIdUnused.erase(id);
+        return id;
+    }
+
+    // No designated ID
+    if (!certIdUnused.empty())
+    {
+        id = *certIdUnused.begin();
+        certIdUnused.erase(id);
+        return id;
+    }
+    else
+    {
+        return certIdCounter++;
+    }
+}
+
+void Manager::releaseId(uint64_t id)
+{
+    certIdUnused.insert(id);
 }
 
 } // namespace phosphor::certs

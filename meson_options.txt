@@ -20,3 +20,8 @@ option('config-nslcd',
     type: 'feature',
     description: 'Install nslcd authority cert configs',
 )
+
+option('config-secureBootDatabase',
+    type: 'feature',
+    description: 'Install secure boot databse cert configs',
+)

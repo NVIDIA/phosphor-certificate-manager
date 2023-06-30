@@ -32,10 +32,34 @@ endif
 systemd_dep = dependency('systemd')
 openssl_dep = dependency('openssl')
 
+# Get Cereal dependency.
+cereal_dep = dependency('cereal', required: false)
+has_cereal = cpp.has_header_symbol(
+    'cereal/cereal.hpp',
+    'cereal::specialize',
+    dependencies: cereal_dep,
+    required: false)
+if not has_cereal
+    cereal_opts = import('cmake').subproject_options()
+    cereal_opts.add_cmake_defines({'BUILD_TESTS': 'OFF'})
+    cereal_proj = import('cmake').subproject(
+        'cereal',
+        options: cereal_opts,
+        required: false)
+    assert(cereal_proj.found(), 'cereal is required')
+    cereal_dep = cereal_proj.dependency('cereal')
+endif
+
 config_data = configuration_data()
 config_data.set(
     'authority_limit',
      get_option('authority-limit')
+)
+
+config_data.set(
+    'CLASS_VERSION',
+    1,
+    description : 'Class version to register with Cereal.'
 )
 
 configure_file(
@@ -62,6 +86,9 @@ cert_manager_lib = static_library(
         'csr.cpp',
         'watch.cpp',
         'x509_utils.cpp',
+        'signature.cpp',
+        'signature_manager.cpp',
+        'uefiSignatureOwnerIntf.cpp',
     ],
     dependencies: phosphor_certificate_deps,
 )

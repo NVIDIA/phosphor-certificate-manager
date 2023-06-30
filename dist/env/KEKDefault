@@ -1,0 +1,12 @@
+#D-Bus object path
+#example: /xyz/openbmc_project/certs/secureBootDatabase/KEKDefault
+ENDPOINT=KEKDefault
+
+#Path for the certificate file
+CERTPATH=/var/lib/phosphor-certificate-manager/secureBootDatabase/KEKDefault
+
+#Units to restart
+UNIT=""
+
+#Type of the service client/server
+TYPE=secureBootDatabase

@@ -18,3 +18,6 @@ inline constexpr char defaultRSAPrivateKeyFileName[] = ".rsaprivkey.pem";
 
 /* The maximum number of Authority certificates the service allows. */
 inline constexpr size_t maxNumAuthorityCertificates = @authority_limit@;
+
+/* Class version to register with Cereal. */
+inline constexpr size_t CLASS_VERSION = @CLASS_VERSION@;

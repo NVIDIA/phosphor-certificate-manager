@@ -2,6 +2,7 @@
 
 #include "certificate.hpp"
 #include "csr.hpp"
+#include "signature_manager.hpp"
 #include "watch.hpp"
 
 #include <openssl/evp.h>
@@ -280,6 +281,17 @@ class Manager : public internal::ManagerInterface
     bool isCertificateUnique(const std::string& certFilePath,
                              const Certificate* const certToDrop = nullptr);
 
+    /** @brief Allocate a certificate ID.
+     *  @param[in] id - The designated ID to allocated. 0 if no designated.
+     *  @return Allocated certificate ID.
+     */
+    uint64_t allocId(uint64_t id = 0);
+
+    /** @brief Release a certificate ID.
+     *  @param[in] id - ID to be released.
+     */
+    void releaseId(uint64_t id);
+
     /** @brief sdbusplus handler */
     sdbusplus::bus::bus& bus;
 
@@ -315,5 +327,11 @@ class Manager : public internal::ManagerInterface
 
     /** @brief Certificate ID pool */
     uint64_t certIdCounter = 1;
+
+    /** @brief Unused Certificate ID pool */
+    std::set<uint64_t> certIdUnused;
+
+    /** @brief Signature Manager */
+    std::unique_ptr<phosphor::certs::SigManager> sigManager;
 };
 } // namespace phosphor::certs

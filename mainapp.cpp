@@ -50,18 +50,29 @@ int main(int argc, char** argv)
     auto bus = sdbusplus::bus::new_default();
     auto objPath = std::string(objectNamePrefix) + '/' + arguments.typeStr +
                    '/' + arguments.endpoint;
-    // Add sdbusplus ObjectManager
-    sdbusplus::server::manager::manager objManager(bus, objPath.c_str());
 
     // Get default event loop
     auto event = sdeventplus::Event::get_default();
 
     // Attach the bus to sd_event to service user requests
     bus.attach_event(event.get(), SD_EVENT_PRIORITY_NORMAL);
-    phosphor::certs::Manager manager(
-        bus, event, objPath.c_str(),
-        phosphor::certs::stringToCertificateType(arguments.typeStr),
-        arguments.unit, arguments.path);
+
+    std::string certPath;
+    auto certificateType =
+        phosphor::certs::stringToCertificateType(arguments.typeStr);
+    if (certificateType == phosphor::certs::CertificateType::SecureBootDatabase)
+    {
+        // Adjusting objPath for SecureBootDatabase
+        objPath =
+            "/xyz/openbmc_project/secureBootDatabase/" + arguments.endpoint;
+    }
+
+    // Add sdbusplus ObjectManager
+    sdbusplus::server::manager::manager objManager(bus, objPath.c_str());
+
+    phosphor::certs::Manager manager(bus, event, objPath.c_str(),
+                                     certificateType, arguments.unit,
+                                     arguments.path);
 
     // Adjusting Interface name as per std convention
     auto busName = std::string(busNamePrefix) + '.' +

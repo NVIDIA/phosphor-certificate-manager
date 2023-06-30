@@ -1,0 +1,12 @@
+#D-Bus object path
+#example: /xyz/openbmc_project/certs/secureBootDatabase/dbx
+ENDPOINT=dbx
+
+#Path for the certificate file
+CERTPATH=/var/lib/phosphor-certificate-manager/secureBootDatabase/dbx
+
+#Units to restart
+UNIT=""
+
+#Type of the service client/server
+TYPE=secureBootDatabase

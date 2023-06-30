@@ -32,6 +32,19 @@ if not get_option('config-nslcd').disabled()
     ]]
 endif
 
+if not get_option('config-secureBootDatabase').disabled()
+    databases = ['PK', 'KEK', 'db', 'dbt', 'dbx', 'PKDefault', 'KEKDefault',
+        'dbDefault', 'dbtDefault', 'dbxDefault']
+
+    foreach database : databases
+        certs += 'env/' + database
+        systemd_alias += [[
+            '../phosphor-certificate-manager@.service',
+            'multi-user.target.wants/phosphor-certificate-manager@' + database + '.service'
+        ]]
+    endforeach
+endif
+
 install_data(
     service_files,
     install_dir: systemd_system_unit_dir,

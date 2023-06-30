@@ -1,20 +1,20 @@
 #pragma once
 
+#include "uefiSignatureOwnerIntf.hpp"
 #include "watch.hpp"
 
 #include <openssl/ossl_typ.h>
 #include <openssl/x509.h>
 
+#include <filesystem>
 #include <functional>
 #include <memory>
+#include <optional>
+#include <phosphor-logging/elog.hpp>
 #include <sdbusplus/server/object.hpp>
 #include <string>
 #include <string_view>
 #include <unordered_map>
-#include <filesystem>
-#include <optional>
-#include <phosphor-logging/elog.hpp>
-
 #include <xyz/openbmc_project/Certs/Certificate/server.hpp>
 #include <xyz/openbmc_project/Certs/Replace/server.hpp>
 #include <xyz/openbmc_project/Object/Delete/server.hpp>
@@ -28,6 +28,7 @@ enum class CertificateType
     Authority,
     Server,
     Client,
+    SecureBootDatabase,
     Unsupported,
 };
 
@@ -41,6 +42,8 @@ inline constexpr const char* certificateTypeToString(CertificateType type)
             return "server";
         case CertificateType::Client:
             return "client";
+        case CertificateType::SecureBootDatabase:
+            return "secureBootDatabase";
         default:
             return "unsupported";
     }
@@ -59,6 +62,10 @@ inline constexpr CertificateType stringToCertificateType(std::string_view type)
     if (type == "client")
     {
         return CertificateType::Client;
+    }
+    if (type == "secureBootDatabase")
+    {
+        return CertificateType::SecureBootDatabase;
     }
     return CertificateType::Unsupported;
 }
@@ -140,8 +147,9 @@ class Certificate : public internal::CertificateInterface
 
     /**
      * @brief Update certificate storage.
-     * 
-     * @param[in] certSrcFilePath - Optional path to source certificate file, certFilePath is used if no value provided.
+     *
+     * @param[in] certSrcFilePath - Optional path to source certificate file,
+     * certFilePath is used if no value provided.
      */
     void storageUpdate(
         std::optional<std::string> certSrcFilePath = std::nullopt);
@@ -150,6 +158,13 @@ class Certificate : public internal::CertificateInterface
      * @brief Delete the certificate
      */
     void delete_() override;
+
+    /**
+     * @brief Get object Path
+     *
+     * @return Object Path.
+     */
+    std::string getObjectPath() const;
 
   private:
     /**
@@ -259,6 +274,9 @@ class Certificate : public internal::CertificateInterface
 
     /** @brief Reference to Certificate Manager */
     Manager& manager;
+
+    /** @brief Interface of UefiSignatureOwner */
+    std::unique_ptr<internal::UefiSignatureOwnerIntf> ownerIntf;
 };
 
 } // namespace phosphor::certs
