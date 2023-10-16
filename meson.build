@@ -55,6 +55,10 @@ config_data.set(
     'authority_limit',
      get_option('authority-limit')
 )
+config_data.set(
+    'authorities_list_name',
+     get_option('authorities-list-name')
+)
 
 config_data.set(
     'CLASS_VERSION',

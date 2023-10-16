@@ -25,3 +25,9 @@ option('config-secureBootDatabase',
     type: 'feature',
     description: 'Install secure boot databse cert configs',
 )
+
+option('authorities-list-name',
+    type: 'string',
+    value: 'trust_bundle',
+    description: 'File name of the authorities list',
+)
