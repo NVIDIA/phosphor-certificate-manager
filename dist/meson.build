@@ -32,6 +32,15 @@ if not get_option('config-nslcd').disabled()
     ]]
 endif
 
+if not get_option('config-authorityBios').disabled()
+    busconfig += 'busconfig/phosphor-authorityBios-cert-config.conf'
+    certs += 'env/authorityBios'
+    systemd_alias += [[
+        '../phosphor-certificate-manager@.service',
+        'multi-user.target.wants/phosphor-certificate-manager@authorityBios.service'
+    ]]
+endif
+
 if not get_option('config-secureBootDatabase').disabled()
     databases = ['PK', 'KEK', 'db', 'dbt', 'dbx', 'PKDefault', 'KEKDefault',
         'dbDefault', 'dbtDefault', 'dbxDefault']

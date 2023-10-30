@@ -21,6 +21,11 @@ option('config-nslcd',
     description: 'Install nslcd authority cert configs',
 )
 
+option('config-authorityBios',
+    type: 'feature',
+    description: 'Install authority bios cert configs',
+)
+
 option('config-secureBootDatabase',
     type: 'feature',
     description: 'Install secure boot databse cert configs',
