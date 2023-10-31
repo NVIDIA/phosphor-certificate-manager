@@ -3,7 +3,6 @@
 #include "certs_manager.hpp"
 
 #include "lsp.hpp"
-
 #include "x509_utils.hpp"
 
 #include <openssl/asn1.h>
@@ -30,6 +29,7 @@
 #include <phosphor-logging/elog-errors.hpp>
 #include <phosphor-logging/elog.hpp>
 #include <phosphor-logging/log.hpp>
+#include <phosphor-logging/redfish_event_log.hpp>
 #include <sdbusplus/bus.hpp>
 #include <sdbusplus/exception.hpp>
 #include <sdbusplus/message.hpp>
@@ -38,7 +38,6 @@
 #include <utility>
 #include <xyz/openbmc_project/Certs/error.hpp>
 #include <xyz/openbmc_project/Common/error.hpp>
-
 namespace phosphor::certs
 {
 namespace
@@ -479,6 +478,14 @@ void Manager::replaceCertificate(Certificate* const certificate,
         certificate->install(filePath);
         storageUpdate();
         reloadOrReset(unitToRestart);
+
+        // send an event
+        using namespace phosphor::logging;
+        std::string dbusObjpath = certificate->getObjectPath();
+        std::vector<std::string> msgArgs{};
+        // Create dbus log, to be picked by redfish framework to send event.
+        sendEvent(MESSAGE_TYPE::RESOURCE_CREATED, Entry::Level::Informational,
+                  msgArgs, dbusObjpath);
     }
     else
     {
