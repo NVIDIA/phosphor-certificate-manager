@@ -17,6 +17,13 @@
 #include <openssl/pem.h>
 #include <openssl/x509v3.h>
 
+#include <phosphor-logging/elog-errors.hpp>
+#include <phosphor-logging/elog.hpp>
+#include <phosphor-logging/lg2.hpp>
+#include <watch.hpp>
+#include <xyz/openbmc_project/Certs/error.hpp>
+#include <xyz/openbmc_project/Common/error.hpp>
+
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -24,14 +31,8 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
-#include <phosphor-logging/elog-errors.hpp>
-#include <phosphor-logging/elog.hpp>
-#include <phosphor-logging/log.hpp>
 #include <utility>
 #include <vector>
-#include <watch.hpp>
-#include <xyz/openbmc_project/Certs/error.hpp>
-#include <xyz/openbmc_project/Common/error.hpp>
 
 namespace phosphor::certs
 {
@@ -40,10 +41,6 @@ namespace
 {
 namespace fs = std::filesystem;
 using ::phosphor::logging::elog;
-using ::phosphor::logging::entry;
-using ::phosphor::logging::level;
-using ::phosphor::logging::log;
-using ::phosphor::logging::report;
 using InvalidCertificateError =
     ::sdbusplus::xyz::openbmc_project::Certs::Error::InvalidCertificate;
 using ::phosphor::logging::xyz::openbmc_project::Certs::InvalidCertificate;
@@ -108,9 +105,9 @@ void dumpCertificate(const std::string& pem, const std::string& certFilePath)
     }
     catch (const std::exception& e)
     {
-        log<level::ERR>("Failed to dump certificate", entry("ERR=%s", e.what()),
-                        entry("SRC_PEM=%s", pem.c_str()),
-                        entry("DST=%s", certFilePath.c_str()));
+        lg2::error(
+            "Failed to dump certificate, ERR:{ERR}, SRC_PEM:{SRC_PEM}, DST:{DST}",
+            "ERR", e, "SRC_PEM", pem, "DST", certFilePath);
         elog<InternalFailure>();
     }
 }
@@ -142,10 +139,9 @@ void Certificate::copyCertificate(const std::string& certSrcFilePath,
         }
         catch (const std::exception& e)
         {
-            log<level::ERR>("Failed to copy certificate",
-                            entry("ERR=%s", e.what()),
-                            entry("SRC=%s", certSrcFilePath.c_str()),
-                            entry("DST=%s", certFilePath.c_str()));
+            lg2::error(
+                "Failed to copy certificate, ERR:{ERR}, SRC:{SRC}, DST:{DST}",
+                "ERR", e, "SRC", certSrcFilePath, "DST", certFilePath);
             elog<InternalFailure>();
         }
     }
@@ -157,9 +153,9 @@ std::string
     char* filePath = tempnam(directoryPath.c_str(), nullptr);
     if (filePath == nullptr)
     {
-        log<level::ERR>(
-            "Error occurred while creating random certificate file path",
-            entry("DIR=%s", directoryPath.c_str()));
+        lg2::error(
+            "Error occurred while creating random certificate file path, DIR:{DIR}",
+            "DIR", directoryPath);
         elog<InternalFailure>();
     }
     std::string filePathStr(filePath);
@@ -172,10 +168,10 @@ std::string Certificate::generateAuthCertFileX509Path(
 {
     const internal::X509Ptr cert = loadCert(certSrcFilePath);
     unsigned long hash = X509_subject_name_hash(cert.get());
-    static constexpr auto CERT_HASH_LENGTH = 9;
-    char hashBuf[CERT_HASH_LENGTH];
+    static constexpr auto certHashLength = 9;
+    char hashBuf[certHashLength];
 
-    snprintf(hashBuf, CERT_HASH_LENGTH, "%08lx", hash);
+    snprintf(hashBuf, certHashLength, "%08lx", hash);
 
     const std::string certHash(hashBuf);
     for (size_t i = 0; i < maxNumAuthorityCertificates; ++i)
@@ -188,8 +184,8 @@ std::string Certificate::generateAuthCertFileX509Path(
         }
     }
 
-    log<level::ERR>("Authority certificate x509 file path already used",
-                    entry("DIR=%s", certDstDirPath.c_str()));
+    lg2::error("Authority certificate x509 file path already used, DIR:{DIR}",
+               "DIR", certDstDirPath);
     elog<InternalFailure>();
 }
 
@@ -219,11 +215,11 @@ std::string
 std::string
     Certificate::generateCertFilePath(const std::string& certSrcFilePath)
 {
-    if (certType == CertificateType::Authority)
+    if (certType == CertificateType::authority)
     {
         return generateAuthCertFilePath(certSrcFilePath);
     }
-    else if (certType == CertificateType::SecureBootDatabase)
+    else if (certType == CertificateType::securebootDatabase)
     {
         return certInstallPath + "/" + fs::path(objectPath).filename().c_str();
     }
@@ -233,10 +229,10 @@ std::string
     }
 }
 
-Certificate::Certificate(sdbusplus::bus::bus& bus, const std::string& objPath,
+Certificate::Certificate(sdbusplus::bus_t& bus, const std::string& objPath,
                          CertificateType type, const std::string& installPath,
                          const std::string& uploadPath, Watch* watch,
-                         Manager& parent) :
+                         Manager& parent, bool restore) :
     internal::CertificateInterface(
         bus, objPath.c_str(),
         internal::CertificateInterface::action::defer_emit),
@@ -250,29 +246,29 @@ Certificate::Certificate(sdbusplus::bus::bus& bus, const std::string& objPath,
                 "Private key does not match the Certificate"));
         };
     };
-    typeFuncMap[CertificateType::Server] = installHelper;
-    typeFuncMap[CertificateType::Client] = installHelper;
-    typeFuncMap[CertificateType::Authority] = [](const std::string&) {};
-    typeFuncMap[CertificateType::SecureBootDatabase] = [](const std::string&) {
+    typeFuncMap[CertificateType::server] = installHelper;
+    typeFuncMap[CertificateType::client] = installHelper;
+    typeFuncMap[CertificateType::authority] = [](const std::string&) {};
+    typeFuncMap[CertificateType::securebootDatabase] = [](const std::string&) {
     };
 
     auto appendPrivateKey = [this](const std::string& filePath) {
         checkAndAppendPrivateKey(filePath);
     };
 
-    appendKeyMap[CertificateType::Server] = appendPrivateKey;
-    appendKeyMap[CertificateType::Client] = appendPrivateKey;
-    appendKeyMap[CertificateType::Authority] = [](const std::string&) {};
-    appendKeyMap[CertificateType::SecureBootDatabase] = [](const std::string&) {
+    appendKeyMap[CertificateType::server] = appendPrivateKey;
+    appendKeyMap[CertificateType::client] = appendPrivateKey;
+    appendKeyMap[CertificateType::authority] = [](const std::string&) {};
+    appendKeyMap[CertificateType::securebootDatabase] = [](const std::string&) {
     };
 
     // Generate certificate file path
     certFilePath = generateCertFilePath(uploadPath);
 
     // install the certificate
-    install(uploadPath);
+    install(uploadPath, restore);
 
-    if (certType == CertificateType::SecureBootDatabase)
+    if (certType == CertificateType::securebootDatabase)
     {
         ownerIntf = std::make_unique<internal::UefiSignatureOwnerIntf>(
             bus, objectPath, certFilePath + ".owner");
@@ -281,11 +277,11 @@ Certificate::Certificate(sdbusplus::bus::bus& bus, const std::string& objPath,
     this->emit_object_added();
 }
 
-Certificate::Certificate(sdbusplus::bus::bus& bus, const std::string& objPath,
+Certificate::Certificate(sdbusplus::bus_t& bus, const std::string& objPath,
                          const CertificateType& type,
                          const std::string& installPath, X509_STORE& x509Store,
                          const std::string& pem, Watch* watchPtr,
-                         Manager& parent) :
+                         Manager& parent, bool restore) :
     internal::CertificateInterface(
         bus, objPath.c_str(),
         internal::CertificateInterface::action::defer_emit),
@@ -296,7 +292,7 @@ Certificate::Certificate(sdbusplus::bus::bus& bus, const std::string& objPath,
     certFilePath = generateUniqueFilePath(installPath);
 
     // install the certificate
-    install(x509Store, pem);
+    install(x509Store, pem, restore);
 
     this->emit_object_added();
 }
@@ -305,8 +301,8 @@ Certificate::~Certificate()
 {
     if (!fs::remove(certFilePath))
     {
-        log<level::INFO>("Certificate file not found!",
-                         entry("PATH=%s", certFilePath.c_str()));
+        lg2::info("Certificate file not found! PATH:{PATH}", "PATH",
+                  certFilePath);
     }
 }
 
@@ -315,10 +311,18 @@ void Certificate::replace(const std::string filePath)
     manager.replaceCertificate(this, filePath);
 }
 
-void Certificate::install(const std::string& certSrcFilePath)
+void Certificate::install(const std::string& certSrcFilePath, bool restore)
 {
-    log<level::INFO>("Certificate install ",
-                     entry("FILEPATH=%s", certSrcFilePath.c_str()));
+    if (restore)
+    {
+        lg2::debug("Certificate install, FILEPATH:{FILEPATH}", "FILEPATH",
+                   certSrcFilePath);
+    }
+    else
+    {
+        lg2::info("Certificate install, FILEPATH:{FILEPATH}", "FILEPATH",
+                  certSrcFilePath);
+    }
 
     // stop watch for user initiated certificate install
     if (certWatch != nullptr)
@@ -330,8 +334,7 @@ void Certificate::install(const std::string& certSrcFilePath)
     fs::path file(certSrcFilePath);
     if (!fs::exists(file))
     {
-        log<level::ERR>("File is Missing",
-                        entry("FILE=%s", certSrcFilePath.c_str()));
+        lg2::error("File is Missing, FILE:{FILE}", "FILE", certSrcFilePath);
         elog<InternalFailure>();
     }
 
@@ -340,8 +343,7 @@ void Certificate::install(const std::string& certSrcFilePath)
         if (fs::file_size(certSrcFilePath) == 0)
         {
             // file is empty
-            log<level::ERR>("File is empty",
-                            entry("FILE=%s", certSrcFilePath.c_str()));
+            lg2::error("File is empty, FILE:{FILE}", "FILE", certSrcFilePath);
             elog<InvalidCertificateError>(
                 InvalidCertificate::REASON("File is empty"));
         }
@@ -349,7 +351,8 @@ void Certificate::install(const std::string& certSrcFilePath)
     catch (const fs::filesystem_error& e)
     {
         // Log Error message
-        log<level::ERR>(e.what(), entry("FILE=%s", certSrcFilePath.c_str()));
+        lg2::error("File is empty, FILE:{FILE}, ERR:{ERR}", "FILE",
+                   certSrcFilePath, "ERR", e);
         elog<InternalFailure>();
     }
 
@@ -366,8 +369,8 @@ void Certificate::install(const std::string& certSrcFilePath)
     // Invoke type specific append private key function.
     if (auto it = appendKeyMap.find(certType); it == appendKeyMap.end())
     {
-        log<level::ERR>("Unsupported Type",
-                        entry("TYPE=%s", certificateTypeToString(certType)));
+        lg2::error("Unsupported Type, TYPE:{TYPE}", "TYPE",
+                   certificateTypeToString(certType));
         elog<InternalFailure>();
     }
     else
@@ -378,8 +381,8 @@ void Certificate::install(const std::string& certSrcFilePath)
     // Invoke type specific compare keys function.
     if (auto it = typeFuncMap.find(certType); it == typeFuncMap.end())
     {
-        log<level::ERR>("Unsupported Type",
-                        entry("TYPE=%s", certificateTypeToString(certType)));
+        lg2::error("Unsupported Type, TYPE:{TYPE}", "TYPE",
+                   certificateTypeToString(certType));
         elog<InternalFailure>();
     }
     else
@@ -403,15 +406,23 @@ void Certificate::install(const std::string& certSrcFilePath)
     }
 }
 
-void Certificate::install(X509_STORE& x509Store, const std::string& pem)
+void Certificate::install(X509_STORE& x509Store, const std::string& pem,
+                          bool restore)
 {
-    log<level::INFO>("Certificate install ", entry("PEM_STR=%s", pem.data()));
-
-    if (certType != CertificateType::Authority)
+    if (restore)
     {
-        log<level::ERR>("Bulk install error: Unsupported Type; only authority "
-                        "supports bulk install",
-                        entry("TYPE=%s", certificateTypeToString(certType)));
+        lg2::debug("Certificate install, PEM_STR:{PEM_STR}", "PEM_STR", pem);
+    }
+    else
+    {
+        lg2::info("Certificate install, PEM_STR:{PEM_STR} ", "PEM_STR", pem);
+    }
+
+    if (certType != CertificateType::authority)
+    {
+        lg2::error("Bulk install error: Unsupported Type; only authority "
+                   "supports bulk install, TYPE:{TYPE}",
+                   "TYPE", certificateTypeToString(certType));
         elog<InternalFailure>();
     }
 
@@ -461,7 +472,7 @@ bool Certificate::isSame(const std::string& certPath)
 
 void Certificate::storageUpdate(std::optional<std::string> certSrcFilePath)
 {
-    if (certType == CertificateType::Authority)
+    if (certType == CertificateType::authority)
     {
         // Create symbolic link in the certificate directory
         std::string certFileX509Path;
@@ -479,10 +490,10 @@ void Certificate::storageUpdate(std::optional<std::string> certSrcFilePath)
         }
         catch (const std::exception& e)
         {
-            log<level::ERR>("Failed to create symlink for certificate",
-                            entry("ERR=%s", e.what()),
-                            entry("FILE=%s", certFilePath.c_str()),
-                            entry("SYMLINK=%s", certFileX509Path.c_str()));
+            lg2::error("Failed to create symlink for certificate, ERR:{ERR},"
+                       "FILE:{FILE}, SYMLINK:{SYMLINK}",
+                       "ERR", e, "FILE", certFilePath, "SYMLINK",
+                       certFileX509Path);
             elog<InternalFailure>();
         }
     }
@@ -511,8 +522,8 @@ void Certificate::populateProperties(X509& cert)
     char issuerBuffer[maxKeySize] = {0};
     BIOMemPtr issuerBio(BIO_new(BIO_s_mem()), BIO_free);
     // This pointer cannot be freed independantly.
-    X509_NAME* issuer_name = X509_get_issuer_name(&cert);
-    X509_NAME_print_ex(issuerBio.get(), issuer_name, 0, XN_FLAG_SEP_COMMA_PLUS);
+    X509_NAME* issuerName = X509_get_issuer_name(&cert);
+    X509_NAME_print_ex(issuerBio.get(), issuerName, 0, XN_FLAG_SEP_COMMA_PLUS);
     BIO_read(issuerBio.get(), issuerBuffer, maxKeySize);
     issuer(issuerBuffer);
 
@@ -571,8 +582,8 @@ void Certificate::checkAndAppendPrivateKey(const std::string& filePath)
     BIOMemPtr keyBio(BIO_new(BIO_s_file()), ::BIO_free);
     if (!keyBio)
     {
-        log<level::ERR>("Error occurred during BIO_s_file call",
-                        entry("FILE=%s", filePath.c_str()));
+        lg2::error("Error occurred during BIO_s_file call, FILE:{FILE}", "FILE",
+                   filePath);
         elog<InternalFailure>();
     }
     BIO_read_filename(keyBio.get(), filePath.c_str());
@@ -582,14 +593,14 @@ void Certificate::checkAndAppendPrivateKey(const std::string& filePath)
                       ::EVP_PKEY_free);
     if (!priKey)
     {
-        log<level::INFO>("Private key not present in file",
-                         entry("FILE=%s", filePath.c_str()));
+        lg2::info("Private key not present in file, FILE:{FILE}", "FILE",
+                  filePath);
         fs::path privateKeyFile = fs::path(certInstallPath).parent_path();
         privateKeyFile = privateKeyFile / defaultPrivateKeyFileName;
         if (!fs::exists(privateKeyFile))
         {
-            log<level::ERR>("Private key file is not found",
-                            entry("FILE=%s", privateKeyFile.c_str()));
+            lg2::error("Private key file is not found, FILE:{FILE}", "FILE",
+                       privateKeyFile);
             elog<InternalFailure>();
         }
 
@@ -612,10 +623,9 @@ void Certificate::checkAndAppendPrivateKey(const std::string& filePath)
         }
         catch (const std::exception& e)
         {
-            log<level::ERR>("Failed to append private key",
-                            entry("ERR=%s", e.what()),
-                            entry("SRC=%s", privateKeyFile.c_str()),
-                            entry("DST=%s", filePath.c_str()));
+            lg2::error(
+                "Failed to append private key, ERR:{ERR}, SRC:{SRC}, DST:{DST}",
+                "ERR", e, "SRC", privateKeyFile, "DST", filePath);
             elog<InternalFailure>();
         }
     }
@@ -623,22 +633,22 @@ void Certificate::checkAndAppendPrivateKey(const std::string& filePath)
 
 bool Certificate::compareKeys(const std::string& filePath)
 {
-    log<level::INFO>("Certificate compareKeys",
-                     entry("FILEPATH=%s", filePath.c_str()));
+    lg2::info("Certificate compareKeys, FILEPATH:{FILEPATH}", "FILEPATH",
+              filePath);
     internal::X509Ptr cert(X509_new(), ::X509_free);
     if (!cert)
     {
-        log<level::ERR>("Error occurred during X509_new call",
-                        entry("FILE=%s", filePath.c_str()),
-                        entry("ERRCODE=%lu", ERR_get_error()));
+        lg2::error(
+            "Error occurred during X509_new call, FILE:{FILE}, ERRCODE:{ERRCODE}",
+            "FILE", filePath, "ERRCODE", ERR_get_error());
         elog<InternalFailure>();
     }
 
     BIOMemPtr bioCert(BIO_new_file(filePath.c_str(), "rb"), ::BIO_free);
     if (!bioCert)
     {
-        log<level::ERR>("Error occurred during BIO_new_file call",
-                        entry("FILE=%s", filePath.c_str()));
+        lg2::error("Error occurred during BIO_new_file call, FILE:{FILE}",
+                   "FILE", filePath);
         elog<InternalFailure>();
     }
 
@@ -648,9 +658,9 @@ bool Certificate::compareKeys(const std::string& filePath)
     EVPPkeyPtr pubKey(X509_get_pubkey(cert.get()), ::EVP_PKEY_free);
     if (!pubKey)
     {
-        log<level::ERR>("Error occurred during X509_get_pubkey",
-                        entry("FILE=%s", filePath.c_str()),
-                        entry("ERRCODE=%lu", ERR_get_error()));
+        lg2::error(
+            "Error occurred during X509_get_pubkey, FILE:{FILE}, ERRCODE:{ERRCODE}",
+            "FILE", filePath, "ERRCODE", ERR_get_error());
         elog<InvalidCertificateError>(
             InvalidCertificate::REASON("Failed to get public key info"));
     }
@@ -658,8 +668,8 @@ bool Certificate::compareKeys(const std::string& filePath)
     BIOMemPtr keyBio(BIO_new(BIO_s_file()), ::BIO_free);
     if (!keyBio)
     {
-        log<level::ERR>("Error occurred during BIO_s_file call",
-                        entry("FILE=%s", filePath.c_str()));
+        lg2::error("Error occurred during BIO_s_file call, FILE:{FILE}", "FILE",
+                   filePath);
         elog<InternalFailure>();
     }
     BIO_read_filename(keyBio.get(), filePath.c_str());
@@ -669,9 +679,9 @@ bool Certificate::compareKeys(const std::string& filePath)
                       ::EVP_PKEY_free);
     if (!priKey)
     {
-        log<level::ERR>("Error occurred during PEM_read_bio_PrivateKey",
-                        entry("FILE=%s", filePath.c_str()),
-                        entry("ERRCODE=%lu", ERR_get_error()));
+        lg2::error(
+            "Error occurred during PEM_read_bio_PrivateKey, FILE:{FILE}, ERRCODE:{ERRCODE}",
+            "FILE", filePath, "ERRCODE", ERR_get_error());
         elog<InvalidCertificateError>(
             InvalidCertificate::REASON("Failed to get private key info"));
     }
@@ -683,9 +693,9 @@ bool Certificate::compareKeys(const std::string& filePath)
 #endif
     if (rc != 1)
     {
-        log<level::ERR>("Private key is not matching with Certificate",
-                        entry("FILE=%s", filePath.c_str()),
-                        entry("ERRCODE=%d", rc));
+        lg2::error(
+            "Private key is not matching with Certificate, FILE:{FILE}, ERRCODE:{ERRCODE}",
+            "FILE", filePath, "ERRCODE", rc);
         return false;
     }
     return true;

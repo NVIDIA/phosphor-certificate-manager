@@ -1,15 +1,16 @@
 #pragma once
 #include <sdbusplus/server/object.hpp>
-#include <string>
 #include <xyz/openbmc_project/Certs/CSR/server.hpp>
+
+#include <string>
 
 namespace phosphor::certs
 {
 
 enum class Status
 {
-    SUCCESS,
-    FAILURE,
+    success,
+    failure,
 };
 
 namespace internal
@@ -37,7 +38,7 @@ class CSR : public internal::CSRInterface
      *  @param[in] installPath - Certificate installation path.
      *  @param[in] status - Status of Generate CSR request
      */
-    CSR(sdbusplus::bus::bus& bus, const char* path, std::string&& installPath,
+    CSR(sdbusplus::bus_t& bus, const char* path, std::string&& installPath,
         const Status& status);
     /** @brief Return CSR
      */

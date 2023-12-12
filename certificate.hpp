@@ -6,18 +6,19 @@
 #include <openssl/ossl_typ.h>
 #include <openssl/x509.h>
 
-#include <filesystem>
-#include <functional>
-#include <memory>
-#include <optional>
 #include <phosphor-logging/elog.hpp>
 #include <sdbusplus/server/object.hpp>
-#include <string>
-#include <string_view>
-#include <unordered_map>
 #include <xyz/openbmc_project/Certs/Certificate/server.hpp>
 #include <xyz/openbmc_project/Certs/Replace/server.hpp>
 #include <xyz/openbmc_project/Object/Delete/server.hpp>
+
+#include <filesystem>
+#include <functional>
+#include <optional>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <unordered_map>
 
 namespace phosphor::certs
 {
@@ -25,25 +26,25 @@ namespace phosphor::certs
 // Certificate types
 enum class CertificateType
 {
-    Authority,
-    Server,
-    Client,
-    SecureBootDatabase,
-    Unsupported,
+    authority,
+    server,
+    client,
+    securebootDatabase,
+    unsupported,
 };
 
 inline constexpr const char* certificateTypeToString(CertificateType type)
 {
     switch (type)
     {
-        case CertificateType::Authority:
+        case CertificateType::authority:
             return "authority";
-        case CertificateType::Server:
+        case CertificateType::server:
             return "server";
-        case CertificateType::Client:
+        case CertificateType::client:
             return "client";
-        case CertificateType::SecureBootDatabase:
-            return "secureBootDatabase";
+        case CertificateType::securebootDatabase:
+            return "securebootDatabase";
         default:
             return "unsupported";
     }
@@ -53,19 +54,19 @@ inline constexpr CertificateType stringToCertificateType(std::string_view type)
 {
     if (type == "authority")
     {
-        return CertificateType::Authority;
+        return CertificateType::authority;
     }
     if (type == "server")
     {
-        return CertificateType::Server;
+        return CertificateType::server;
     }
     if (type == "client")
     {
-        return CertificateType::Client;
+        return CertificateType::client;
     }
-    if (type == "secureBootDatabase")
+    if (type == "securebootDatabase")
     {
-        return CertificateType::SecureBootDatabase;
+        return CertificateType::securebootDatabase;
     }
     return CertificateType::Unsupported;
 }
@@ -107,10 +108,12 @@ class Certificate : public internal::CertificateInterface
      *  @param[in] uploadPath - Path of the certificate file to upload
      *  @param[in] watchPtr - watch on self signed certificate
      *  @param[in] parent - the manager that owns the certificate
+     *  @param[in] restore - the certificate is created in the restore path
      */
-    Certificate(sdbusplus::bus::bus& bus, const std::string& objPath,
+    Certificate(sdbusplus::bus_t& bus, const std::string& objPath,
                 CertificateType type, const std::string& installPath,
-                const std::string& uploadPath, Watch* watch, Manager& parent);
+                const std::string& uploadPath, Watch* watch, Manager& parent,
+                bool restore);
 
     /** @brief Constructor for the Certificate Object; a variant for authorities
      * list install
@@ -125,18 +128,20 @@ class Certificate : public internal::CertificateInterface
      *  @param[in] watchPtr - watch on self signed certificate
      *  @param[in] parent - Pointer to the manager which owns the constructed
      * Certificate object
+     *  @param[in] restore - the certificate is created in the restore path
      */
-    Certificate(sdbusplus::bus::bus& bus, const std::string& objPath,
+    Certificate(sdbusplus::bus_t& bus, const std::string& objPath,
                 const CertificateType& type, const std::string& installPath,
                 X509_STORE& x509Store, const std::string& pem, Watch* watchPtr,
-                Manager& parent);
+                Manager& parent, bool restore);
 
     /** @brief Validate and Replace/Install the certificate file
      *  Install/Replace the existing certificate file with another
      *  (possibly CA signed) Certificate file.
      *  @param[in] filePath - Certificate file path.
+     *  @param[in] restore - the certificate is created in the restore path
      */
-    void install(const std::string& filePath);
+    void install(const std::string& filePath, bool restore);
 
     /** @brief Validate and Replace/Install the certificate file
      *  Install/Replace the existing certificate file with another
@@ -144,8 +149,9 @@ class Certificate : public internal::CertificateInterface
      *  @param[in] x509Store - an initialized X509 store used for certificate
      * validation; Certificate object doesn't own it
      *  @param[in] pem - a string buffer which stores a PEM encoded certificate.
+     *  @param[in] restore - the certificate is created in the restore path
      */
-    void install(X509_STORE& x509Store, const std::string& pem);
+    void install(X509_STORE& x509Store, const std::string& pem, bool restore);
 
     /** @brief Validate certificate and replace the existing certificate
      *  @param[in] filePath - Certificate file path.

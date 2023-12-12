@@ -1,5 +1,5 @@
 systemd_system_unit_dir = systemd_dep.get_variable(
-    pkgconfig: 'systemdsystemunitdir'
+    'systemdsystemunitdir'
 )
 busconfig_dir = get_option('datadir') / 'dbus-1' / 'system.d'
 cert_manager_dir = get_option('datadir') / 'phosphor-certificate-manager'
@@ -23,8 +23,8 @@ if not get_option('config-bmcweb').disabled()
     ]]
 endif
 
-if not get_option('config-nslcd').disabled()
-    busconfig += 'busconfig/phosphor-nslcd-authority-cert-config.conf'
+if not get_option('config-authority').disabled()
+    busconfig += 'busconfig/phosphor-authority-cert-config.conf'
     certs += 'env/authority'
     systemd_alias += [[
         '../phosphor-certificate-manager@.service',

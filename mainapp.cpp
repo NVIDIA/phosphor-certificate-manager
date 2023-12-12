@@ -22,10 +22,11 @@
 
 #include <systemd/sd-event.h>
 
-#include <cctype>
 #include <sdbusplus/bus.hpp>
 #include <sdbusplus/server/manager.hpp>
 #include <sdeventplus/event.hpp>
+
+#include <cctype>
 #include <string>
 #include <utility>
 
@@ -50,6 +51,8 @@ int main(int argc, char** argv)
     auto bus = sdbusplus::bus::new_default();
     auto objPath = std::string(objectNamePrefix) + '/' + arguments.typeStr +
                    '/' + arguments.endpoint;
+    // Add sdbusplus ObjectManager
+    sdbusplus::server::manager_t objManager(bus, objPath.c_str());
 
     // Get default event loop
     auto event = sdeventplus::Event::get_default();
@@ -67,8 +70,6 @@ int main(int argc, char** argv)
             "/xyz/openbmc_project/secureBootDatabase/" + arguments.endpoint;
     }
 
-    // Add sdbusplus ObjectManager
-    sdbusplus::server::manager::manager objManager(bus, objPath.c_str());
 
     phosphor::certs::Manager manager(bus, event, objPath.c_str(),
                                      certificateType, arguments.unit,

@@ -3,11 +3,11 @@ project(
     'cpp',
     default_options: [
         'buildtype=debugoptimized',
-        'cpp_std=c++20',
+        'cpp_std=c++23',
         'warning_level=3',
         'werror=true',
     ],
-    meson_version: '>=0.57.0',
+    meson_version: '>=1.1.1',
 )
 
 cpp = meson.get_compiler('cpp')
@@ -65,6 +65,12 @@ config_data.set(
     1,
     description : 'Class version to register with Cereal.'
 )
+
+if not get_option('allow-expired').disabled()
+  config_data.set('allow_expired', 'true')
+else
+  config_data.set('allow_expired', 'false')
+endif
 
 configure_file(
     input: 'config.h.in',

@@ -20,7 +20,7 @@
 #   * reviewers: A list of individuals who have requested review notification
 #     on the repository.
 #
-#   * matches: A list of specific file/path matches for granular 'owners' and
+#   * matchers: A list of specific file/path matchers for granular 'owners' and
 #     'reviewers'.  See 'owners' plugin documentation.
 #
 #   * openbmc: A list of openbmc-specific meta-data about owners and reviewers.
@@ -33,14 +33,14 @@
 
 owners:
 - devenrao@in.ibm.com
-- ed@tanous.net
-- ojayanth@in.ibm.com
+- ojayanth@gmail.com
 - nanzhoumails@gmail.com
 
 reviewers:
+- raviteja28031990@gmail.com
 - deepak.kodihalli.83@gmail.com
 
-matches:
+matchers:
 
 openbmc:
 - name: Deepak Kodihalli
@@ -50,8 +50,11 @@ openbmc:
   email: devenrao@in.ibm.com
   discord: devender
 - name: Jayanth Othayoth
-  email: ojayanth@in.ibm.com
+  email: ojayanth@gmail.com
   discord: Jayanth
 - name: Nan Zhou
   email: nanzhoumails@gmail.com
   discord: Nan Zhou
+- name: Ravi Teja
+  email: raviteja28031990@gmail.com
+  discord: raviteja

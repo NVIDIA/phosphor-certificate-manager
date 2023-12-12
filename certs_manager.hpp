@@ -9,19 +9,20 @@
 #include <openssl/ossl_typ.h>
 #include <openssl/x509.h>
 
-#include <cstdint>
-#include <filesystem>
-#include <memory>
 #include <sdbusplus/server/object.hpp>
 #include <sdeventplus/source/child.hpp>
 #include <sdeventplus/source/event.hpp>
-#include <string>
-#include <vector>
 #include <xyz/openbmc_project/Certs/CSR/Create/server.hpp>
 #include <xyz/openbmc_project/Certs/Install/server.hpp>
 #include <xyz/openbmc_project/Certs/InstallAll/server.hpp>
 #include <xyz/openbmc_project/Certs/ReplaceAll/server.hpp>
 #include <xyz/openbmc_project/Collection/DeleteAll/server.hpp>
+
+#include <cstdint>
+#include <filesystem>
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace phosphor::certs
 {
@@ -64,8 +65,8 @@ class Manager : public internal::ManagerInterface
      *  @param[in] unit - Unit consumed by this certificate.
      *  @param[in] installPath - Certificate installation path.
      */
-    Manager(sdbusplus::bus::bus& bus, sdeventplus::Event& event,
-            const char* path, CertificateType type, const std::string& unit,
+    Manager(sdbusplus::bus_t& bus, sdeventplus::Event& event, const char* path,
+            CertificateType type, const std::string& unit,
             const std::string& installPath);
 
     /** @brief Implementation for Install
@@ -232,7 +233,7 @@ class Manager : public internal::ManagerInterface
      *  @return     Pointer to EC private key
      */
     std::unique_ptr<EVP_PKEY, decltype(&::EVP_PKEY_free)>
-        generateECKeyPair(const std::string& p_KeyCurveId);
+        generateECKeyPair(const std::string& pKeyCurveId);
 
     /** @brief Write private key data to file
      *
@@ -318,7 +319,7 @@ class Manager : public internal::ManagerInterface
     void releaseId(uint64_t id);
 
     /** @brief sdbusplus handler */
-    sdbusplus::bus::bus& bus;
+    sdbusplus::bus_t& bus;
 
     // sdevent Event handle
     sdeventplus::Event& event;

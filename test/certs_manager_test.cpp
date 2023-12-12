@@ -12,6 +12,11 @@
 #include <systemd/sd-event.h>
 #include <unistd.h>
 
+#include <sdbusplus/bus.hpp>
+#include <sdeventplus/event.hpp>
+#include <xyz/openbmc_project/Certs/error.hpp>
+#include <xyz/openbmc_project/Common/error.hpp>
+
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -21,14 +26,10 @@
 #include <iterator>
 #include <memory>
 #include <new>
-#include <sdbusplus/bus.hpp>
-#include <sdeventplus/event.hpp>
 #include <string>
 #include <unordered_set>
 #include <utility>
 #include <vector>
-#include <xyz/openbmc_project/Certs/error.hpp>
-#include <xyz/openbmc_project/Common/error.hpp>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -72,9 +73,7 @@ bool compareFiles(const std::string& file1, const std::string& file2)
 class TestCertificates : public ::testing::Test
 {
   public:
-    TestCertificates() : bus(sdbusplus::bus::new_default())
-    {
-    }
+    TestCertificates() : bus(sdbusplus::bus::new_default()) {}
     void SetUp() override
     {
         char dirTemplate[] = "/tmp/FakeCerts.XXXXXX";
@@ -198,14 +197,14 @@ class TestCertificates : public ::testing::Test
         }
 
         unsigned long hash = X509_subject_name_hash(cert.get());
-        static constexpr auto AUTH_CERT_HASH_LENGTH = 9;
-        char hashBuf[AUTH_CERT_HASH_LENGTH];
+        static constexpr auto authCertHashLength = 9;
+        char hashBuf[authCertHashLength];
         sprintf(hashBuf, "%08lx", hash);
         return std::string(hashBuf);
     }
 
   protected:
-    sdbusplus::bus::bus bus;
+    sdbusplus::bus_t bus;
     std::string certificateFile, CSRFile, privateKeyFile, rsaPrivateKeyFilePath;
 
     std::string certDir;
@@ -219,15 +218,10 @@ class MainApp
             phosphor::certs::CSR* csr = nullptr) :
         manager(manager),
         csr_(csr)
-    {
-    }
+    {}
     void install(std::string& path)
     {
         manager->install(path);
-    }
-    void delete_()
-    {
-        manager->deleteAll();
     }
 
     std::string generateCSR(std::vector<std::string> alternativeNames,
@@ -261,12 +255,11 @@ class ManagerInTest : public phosphor::certs::Manager
   public:
     static constexpr std::string_view unitToRestartInTest =
         "xyz.openbmc_project.awesome-service";
-    ManagerInTest(sdbusplus::bus::bus& bus, sdeventplus::Event& event,
+    ManagerInTest(sdbusplus::bus_t& bus, sdeventplus::Event& event,
                   const char* path, CertificateType type,
                   const std::string& unit, const std::string& installPath) :
         Manager(bus, event, path, type, unit, installPath)
-    {
-    }
+    {}
 
     MOCK_METHOD(void, reloadOrReset, (const std::string&), (override));
 };
@@ -276,7 +269,7 @@ class ManagerInTest : public phosphor::certs::Manager
 TEST_F(TestCertificates, InvokeServerInstall)
 {
     std::string endpoint("https");
-    CertificateType type = CertificateType::Server;
+    CertificateType type = CertificateType::server;
     std::string installPath(certDir + "/" + certificateFile);
     std::string verifyPath(installPath);
     std::string verifyUnit(ManagerInTest::unitToRestartInTest);
@@ -299,7 +292,7 @@ TEST_F(TestCertificates, InvokeServerInstall)
 TEST_F(TestCertificates, InvokeClientInstall)
 {
     std::string endpoint("ldap");
-    CertificateType type = CertificateType::Server;
+    CertificateType type = CertificateType::server;
     std::string installPath(certDir + "/" + certificateFile);
     std::string verifyPath(installPath);
     std::string verifyUnit(ManagerInTest::unitToRestartInTest);
@@ -321,8 +314,8 @@ TEST_F(TestCertificates, InvokeClientInstall)
  */
 TEST_F(TestCertificates, InvokeAuthorityInstall)
 {
-    std::string endpoint("ldap");
-    CertificateType type = CertificateType::Authority;
+    std::string endpoint("truststore");
+    CertificateType type = CertificateType::authority;
     std::string verifyDir(certDir);
     std::string verifyUnit(ManagerInTest::unitToRestartInTest);
     auto objPath = std::string(objectNamePrefix) + '/' +
@@ -349,8 +342,8 @@ TEST_F(TestCertificates, InvokeAuthorityInstall)
     EXPECT_EQ(certs.front()->subject(), "O=openbmc-project.xyz,CN=localhost");
     EXPECT_EQ(certs.front()->issuer(), "O=openbmc-project.xyz,CN=localhost");
 
-    std::string verifyPath =
-        verifyDir + "/" + getCertSubjectNameHash(certificateFile) + ".0";
+    std::string verifyPath = verifyDir + "/" +
+                             getCertSubjectNameHash(certificateFile) + ".0";
 
     // Check that certificate has been created at installation directory
     EXPECT_FALSE(fs::is_empty(verifyDir));
@@ -364,8 +357,8 @@ TEST_F(TestCertificates, InvokeAuthorityInstall)
  */
 TEST_F(TestCertificates, InvokeAuthorityInstallNeverExpiredRootCert)
 {
-    std::string endpoint("ldap");
-    CertificateType type = CertificateType::Authority;
+    std::string endpoint("truststore");
+    CertificateType type = CertificateType::authority;
     std::string verifyDir(certDir);
     std::string verifyUnit(ManagerInTest::unitToRestartInTest);
     auto objPath = std::string(objectNamePrefix) + '/' +
@@ -389,8 +382,8 @@ TEST_F(TestCertificates, InvokeAuthorityInstallNeverExpiredRootCert)
     EXPECT_EQ(certs.front()->validNotBefore(), 0);
     EXPECT_EQ(certs.front()->validNotAfter(), 253402300799ULL);
 
-    std::string verifyPath =
-        verifyDir + "/" + getCertSubjectNameHash(certificateFile) + ".0";
+    std::string verifyPath = verifyDir + "/" +
+                             getCertSubjectNameHash(certificateFile) + ".0";
 
     // Check that certificate has been created at installation directory
     EXPECT_FALSE(fs::is_empty(verifyDir));
@@ -405,8 +398,8 @@ TEST_F(TestCertificates, InvokeAuthorityInstallNeverExpiredRootCert)
  */
 TEST_F(TestCertificates, InvokeInstallSameCertTwice)
 {
-    std::string endpoint("ldap");
-    CertificateType type = CertificateType::Authority;
+    std::string endpoint("truststore");
+    CertificateType type = CertificateType::authority;
     std::string verifyDir(certDir);
     std::string verifyUnit(ManagerInTest::unitToRestartInTest);
     auto objPath = std::string(objectNamePrefix) + '/' +
@@ -427,8 +420,8 @@ TEST_F(TestCertificates, InvokeInstallSameCertTwice)
     EXPECT_FALSE(certs.empty());
 
     // Check that certificate has been created at installation directory
-    std::string verifyPath =
-        verifyDir + "/" + getCertSubjectNameHash(certificateFile) + ".0";
+    std::string verifyPath = verifyDir + "/" +
+                             getCertSubjectNameHash(certificateFile) + ".0";
     EXPECT_FALSE(fs::is_empty(verifyDir));
     EXPECT_TRUE(fs::exists(verifyPath));
 
@@ -461,8 +454,8 @@ TEST_F(TestCertificates, InvokeInstallSameCertTwice)
  */
 TEST_F(TestCertificates, InvokeInstallSameSubjectTwice)
 {
-    std::string endpoint("ldap");
-    CertificateType type = CertificateType::Authority;
+    std::string endpoint("truststore");
+    CertificateType type = CertificateType::authority;
     std::string verifyDir(certDir);
     std::string verifyUnit(ManagerInTest::unitToRestartInTest);
     auto objPath = std::string(objectNamePrefix) + '/' +
@@ -484,8 +477,8 @@ TEST_F(TestCertificates, InvokeInstallSameSubjectTwice)
     EXPECT_FALSE(certs.empty());
 
     // Check that certificate has been created at installation directory
-    std::string verifyPath0 =
-        verifyDir + "/" + getCertSubjectNameHash(certificateFile) + ".0";
+    std::string verifyPath0 = verifyDir + "/" +
+                              getCertSubjectNameHash(certificateFile) + ".0";
     EXPECT_FALSE(fs::is_empty(verifyDir));
     EXPECT_TRUE(fs::exists(verifyPath0));
 
@@ -502,8 +495,8 @@ TEST_F(TestCertificates, InvokeInstallSameSubjectTwice)
     EXPECT_EQ(certs.size(), 2);
 
     // Check that certificate has been created at installation directory
-    std::string verifyPath1 =
-        verifyDir + "/" + getCertSubjectNameHash(certificateFile) + ".1";
+    std::string verifyPath1 = verifyDir + "/" +
+                              getCertSubjectNameHash(certificateFile) + ".1";
     EXPECT_TRUE(fs::exists(verifyPath1));
 
     // Check that installed cert is identical to input one
@@ -519,8 +512,8 @@ TEST_F(TestCertificates, InvokeInstallSameSubjectTwice)
  */
 TEST_F(TestCertificates, InvokeInstallAuthCertLimit)
 {
-    std::string endpoint("ldap");
-    CertificateType type = CertificateType::Authority;
+    std::string endpoint("truststore");
+    CertificateType type = CertificateType::authority;
     std::string verifyDir(certDir);
     std::string verifyUnit(ManagerInTest::unitToRestartInTest);
     auto objPath = std::string(objectNamePrefix) + '/' +
@@ -552,8 +545,8 @@ TEST_F(TestCertificates, InvokeInstallAuthCertLimit)
         EXPECT_EQ(certs.size(), i + 1);
 
         // Check that certificate has been created at installation directory
-        std::string verifyPath =
-            verifyDir + "/" + getCertSubjectNameHash(certificateFile) + ".0";
+        std::string verifyPath = verifyDir + "/" +
+                                 getCertSubjectNameHash(certificateFile) + ".0";
         EXPECT_FALSE(fs::is_empty(verifyDir));
         EXPECT_TRUE(fs::exists(verifyPath));
 
@@ -596,7 +589,7 @@ TEST_F(TestCertificates, InvokeInstallAuthCertLimit)
 TEST_F(TestCertificates, CompareInstalledCertificate)
 {
     std::string endpoint("ldap");
-    CertificateType type = CertificateType::Client;
+    CertificateType type = CertificateType::client;
     std::string installPath(certDir + "/" + certificateFile);
     std::string verifyPath(installPath);
     std::string verifyUnit(ManagerInTest::unitToRestartInTest);
@@ -620,7 +613,7 @@ TEST_F(TestCertificates, CompareInstalledCertificate)
 TEST_F(TestCertificates, TestNoCertificateFile)
 {
     std::string endpoint("ldap");
-    CertificateType type = CertificateType::Client;
+    CertificateType type = CertificateType::client;
     std::string installPath(certDir + "/" + certificateFile);
     std::string verifyPath(installPath);
     std::string verifyUnit(ManagerInTest::unitToRestartInTest);
@@ -653,7 +646,7 @@ TEST_F(TestCertificates, TestNoCertificateFile)
 TEST_F(TestCertificates, TestReplaceCertificate)
 {
     std::string endpoint("ldap");
-    CertificateType type = CertificateType::Server;
+    CertificateType type = CertificateType::server;
     std::string installPath(certDir + "/" + certificateFile);
     std::string verifyPath(installPath);
     std::string verifyUnit(ManagerInTest::unitToRestartInTest);
@@ -682,8 +675,8 @@ TEST_F(TestCertificates, TestReplaceCertificate)
  */
 TEST_F(TestCertificates, TestAuthorityReplaceCertificate)
 {
-    std::string endpoint("ldap");
-    CertificateType type = CertificateType::Authority;
+    std::string endpoint("truststore");
+    CertificateType type = CertificateType::authority;
     std::string verifyDir(certDir);
     std::string verifyUnit(ManagerInTest::unitToRestartInTest);
     auto objPath = std::string(objectNamePrefix) + '/' +
@@ -693,9 +686,9 @@ TEST_F(TestCertificates, TestAuthorityReplaceCertificate)
     bus.attach_event(event.get(), SD_EVENT_PRIORITY_NORMAL);
     ManagerInTest manager(bus, event, objPath.c_str(), type, verifyUnit,
                           certDir);
-    constexpr const unsigned int REPLACE_ITERATIONS = 10;
+    constexpr const unsigned int replaceIterations = 10;
     EXPECT_CALL(manager, reloadOrReset(Eq(ManagerInTest::unitToRestartInTest)))
-        .Times(REPLACE_ITERATIONS + 1)
+        .Times(replaceIterations + 1)
         .WillRepeatedly(Return());
     MainApp mainApp(&manager);
     mainApp.install(certificateFile);
@@ -703,13 +696,13 @@ TEST_F(TestCertificates, TestAuthorityReplaceCertificate)
     std::vector<std::unique_ptr<Certificate>>& certs =
         manager.getCertificates();
 
-    for (unsigned int i = 0; i < REPLACE_ITERATIONS; i++)
+    for (unsigned int i = 0; i < replaceIterations; i++)
     {
         // Certificate successfully installed
         EXPECT_FALSE(certs.empty());
 
-        std::string verifyPath =
-            verifyDir + "/" + getCertSubjectNameHash(certificateFile) + ".0";
+        std::string verifyPath = verifyDir + "/" +
+                                 getCertSubjectNameHash(certificateFile) + ".0";
 
         // Check that certificate has been created at installation directory
         EXPECT_FALSE(fs::is_empty(verifyDir));
@@ -732,8 +725,8 @@ TEST_F(TestCertificates, TestAuthorityReplaceCertificate)
  */
 TEST_F(TestCertificates, TestStorageDeleteCertificate)
 {
-    std::string endpoint("ldap");
-    CertificateType type = CertificateType::Authority;
+    std::string endpoint("truststore");
+    CertificateType type = CertificateType::authority;
     std::string verifyDir(certDir);
     std::string verifyUnit((ManagerInTest::unitToRestartInTest));
     auto objPath = std::string(objectNamePrefix) + '/' +
@@ -786,7 +779,7 @@ TEST_F(TestCertificates, TestStorageDeleteCertificate)
 TEST_F(TestCertificates, TestEmptyCertificateFile)
 {
     std::string endpoint("ldap");
-    CertificateType type = CertificateType::Client;
+    CertificateType type = CertificateType::client;
     std::string installPath(certDir + "/" + certificateFile);
     std::string verifyPath(installPath);
     std::string verifyUnit(ManagerInTest::unitToRestartInTest);
@@ -823,7 +816,7 @@ TEST_F(TestCertificates, TestEmptyCertificateFile)
 TEST_F(TestCertificates, TestInvalidCertificateFile)
 {
     std::string endpoint("ldap");
-    CertificateType type = CertificateType::Client;
+    CertificateType type = CertificateType::client;
 
     std::ofstream ofs;
     ofs.open(certificateFile, std::ofstream::out);
@@ -864,9 +857,7 @@ TEST_F(TestCertificates, TestInvalidCertificateFile)
 class TestInvalidCertificate : public ::testing::Test
 {
   public:
-    TestInvalidCertificate() : bus(sdbusplus::bus::new_default())
-    {
-    }
+    TestInvalidCertificate() : bus(sdbusplus::bus::new_default()) {}
     void SetUp() override
     {
         char dirTemplate[] = "/tmp/FakeCerts.XXXXXX";
@@ -899,7 +890,7 @@ class TestInvalidCertificate : public ::testing::Test
     }
 
   protected:
-    sdbusplus::bus::bus bus;
+    sdbusplus::bus_t bus;
     std::string certificateFile;
     std::string keyFile;
     std::string certDir;
@@ -910,7 +901,7 @@ class TestInvalidCertificate : public ::testing::Test
 TEST_F(TestInvalidCertificate, TestMissingPrivateKey)
 {
     std::string endpoint("ldap");
-    CertificateType type = CertificateType::Client;
+    CertificateType type = CertificateType::client;
     std::string installPath(certDir + "/" + certificateFile);
     std::string verifyPath(installPath);
     std::string verifyUnit(ManagerInTest::unitToRestartInTest);
@@ -942,7 +933,7 @@ TEST_F(TestInvalidCertificate, TestMissingPrivateKey)
 TEST_F(TestInvalidCertificate, TestMissingCeritificate)
 {
     std::string endpoint("ldap");
-    CertificateType type = CertificateType::Client;
+    CertificateType type = CertificateType::client;
     std::string installPath(certDir + "/" + keyFile);
     std::string verifyPath(installPath);
     std::string verifyUnit(ManagerInTest::unitToRestartInTest);
@@ -977,7 +968,7 @@ TEST_F(TestCertificates, TestCertInstallNotAllowed)
     using NotAllowed =
         sdbusplus::xyz::openbmc_project::Common::Error::NotAllowed;
     std::string endpoint("ldap");
-    CertificateType type = CertificateType::Client;
+    CertificateType type = CertificateType::client;
     std::string installPath(certDir + "/" + certificateFile);
     std::string verifyPath(installPath);
     std::string verifyUnit(ManagerInTest::unitToRestartInTest);
@@ -1010,10 +1001,10 @@ TEST_F(TestCertificates, TestGenerateCSR)
 {
     std::string endpoint("https");
     std::string unit;
-    CertificateType type = CertificateType::Server;
+    CertificateType type = CertificateType::server;
     std::string installPath(certDir + "/" + certificateFile);
     std::string verifyPath(installPath);
-    std::string CSRPath(certDir + "/" + CSRFile);
+    std::string csrPath(certDir + "/" + CSRFile);
     std::string privateKeyPath(certDir + "/" + privateKeyFile);
     std::vector<std::string> alternativeNames{"localhost1", "localhost2"};
     std::string challengePassword("Password");
@@ -1041,7 +1032,7 @@ TEST_F(TestCertificates, TestGenerateCSR)
     Manager manager(bus, event, objPath.c_str(), type, std::move(unit),
                     std::move(installPath));
     Status status;
-    CSR csr(bus, objPath.c_str(), CSRPath.c_str(), status);
+    CSR csr(bus, objPath.c_str(), csrPath.c_str(), status);
     MainApp mainApp(&manager, &csr);
     mainApp.generateCSR(alternativeNames, challengePassword, city, commonName,
                         contactPerson, country, email, givenName, initials,
@@ -1050,7 +1041,7 @@ TEST_F(TestCertificates, TestGenerateCSR)
                         unstructuredName);
     std::string csrData("");
     // generateCSR takes considerable time to create CSR and privateKey Files
-    EXPECT_FALSE(fs::exists(CSRPath));
+    EXPECT_FALSE(fs::exists(csrPath));
     EXPECT_FALSE(fs::exists(privateKeyPath));
     EXPECT_THROW(
         {
@@ -1066,7 +1057,7 @@ TEST_F(TestCertificates, TestGenerateCSR)
         InternalFailure);
     // wait for 10 sec to get CSR and privateKey Files generated
     sleep(10);
-    EXPECT_TRUE(fs::exists(CSRPath));
+    EXPECT_TRUE(fs::exists(csrPath));
     EXPECT_TRUE(fs::exists(privateKeyPath));
     csrData = csr.csr();
     ASSERT_NE("", csrData.c_str());
@@ -1079,10 +1070,10 @@ TEST_F(TestCertificates, TestGenerateCSRwithEmptyKeyPairAlgorithm)
 {
     std::string endpoint("https");
     std::string unit;
-    CertificateType type = CertificateType::Server;
+    CertificateType type = CertificateType::server;
     std::string installPath(certDir + "/" + certificateFile);
     std::string verifyPath(installPath);
-    std::string CSRPath(certDir + "/" + CSRFile);
+    std::string csrPath(certDir + "/" + CSRFile);
     std::string privateKeyPath(certDir + "/" + privateKeyFile);
     std::vector<std::string> alternativeNames{"localhost1", "localhost2"};
     std::string challengePassword("Password");
@@ -1108,7 +1099,7 @@ TEST_F(TestCertificates, TestGenerateCSRwithEmptyKeyPairAlgorithm)
     Manager manager(bus, event, objPath.c_str(), type, std::move(unit),
                     std::move(installPath));
     Status status;
-    CSR csr(bus, objPath.c_str(), CSRPath.c_str(), status);
+    CSR csr(bus, objPath.c_str(), csrPath.c_str(), status);
     MainApp mainApp(&manager, &csr);
     mainApp.generateCSR(alternativeNames, challengePassword, city, commonName,
                         contactPerson, country, email, givenName, initials,
@@ -1116,7 +1107,7 @@ TEST_F(TestCertificates, TestGenerateCSRwithEmptyKeyPairAlgorithm)
                         organization, organizationalUnit, state, surname,
                         unstructuredName);
     sleep(10);
-    EXPECT_TRUE(fs::exists(CSRPath));
+    EXPECT_TRUE(fs::exists(csrPath));
     EXPECT_TRUE(fs::exists(privateKeyPath));
 }
 
@@ -1127,10 +1118,10 @@ TEST_F(TestCertificates, TestGenerateCSRwithUnsupportedKeyPairAlgorithm)
 {
     std::string endpoint("https");
     std::string unit;
-    CertificateType type = CertificateType::Server;
+    CertificateType type = CertificateType::server;
     std::string installPath(certDir + "/" + certificateFile);
     std::string verifyPath(installPath);
-    std::string CSRPath(certDir + "/" + CSRFile);
+    std::string csrPath(certDir + "/" + CSRFile);
     std::string privateKeyPath(certDir + "/" + privateKeyFile);
     std::vector<std::string> alternativeNames{"localhost1", "localhost2"};
     std::string challengePassword("Password");
@@ -1156,14 +1147,14 @@ TEST_F(TestCertificates, TestGenerateCSRwithUnsupportedKeyPairAlgorithm)
     Manager manager(bus, event, objPath.c_str(), type, std::move(unit),
                     std::move(installPath));
     Status status;
-    CSR csr(bus, objPath.c_str(), CSRPath.c_str(), status);
+    CSR csr(bus, objPath.c_str(), csrPath.c_str(), status);
     MainApp mainApp(&manager, &csr);
     mainApp.generateCSR(alternativeNames, challengePassword, city, commonName,
                         contactPerson, country, email, givenName, initials,
                         keyBitLength, keyCurveId, keyPairAlgorithm, keyUsage,
                         organization, organizationalUnit, state, surname,
                         unstructuredName);
-    EXPECT_FALSE(fs::exists(CSRPath));
+    EXPECT_FALSE(fs::exists(csrPath));
     EXPECT_FALSE(fs::exists(privateKeyPath));
 }
 
@@ -1174,10 +1165,10 @@ TEST_F(TestCertificates, TestECKeyGenerationwithNIDundefCase)
 {
     std::string endpoint("https");
     std::string unit;
-    CertificateType type = CertificateType::Server;
+    CertificateType type = CertificateType::server;
     std::string installPath(certDir + "/" + certificateFile);
     std::string verifyPath(installPath);
-    std::string CSRPath(certDir + "/" + CSRFile);
+    std::string csrPath(certDir + "/" + CSRFile);
     std::string privateKeyPath(certDir + "/" + privateKeyFile);
     std::vector<std::string> alternativeNames{"localhost1", "localhost2"};
     std::string challengePassword("Password");
@@ -1203,14 +1194,14 @@ TEST_F(TestCertificates, TestECKeyGenerationwithNIDundefCase)
     Manager manager(bus, event, objPath.c_str(), type, std::move(unit),
                     std::move(installPath));
     Status status;
-    CSR csr(bus, objPath.c_str(), CSRPath.c_str(), status);
+    CSR csr(bus, objPath.c_str(), csrPath.c_str(), status);
     MainApp mainApp(&manager, &csr);
     mainApp.generateCSR(alternativeNames, challengePassword, city, commonName,
                         contactPerson, country, email, givenName, initials,
                         keyBitLength, keyCurveId, keyPairAlgorithm, keyUsage,
                         organization, organizationalUnit, state, surname,
                         unstructuredName);
-    EXPECT_FALSE(fs::exists(CSRPath));
+    EXPECT_FALSE(fs::exists(csrPath));
     EXPECT_FALSE(fs::exists(privateKeyPath));
 }
 
@@ -1220,10 +1211,10 @@ TEST_F(TestCertificates, TestECKeyGenerationwithDefaultKeyCurveId)
 {
     std::string endpoint("https");
     std::string unit;
-    CertificateType type = CertificateType::Server;
+    CertificateType type = CertificateType::server;
     std::string installPath(certDir + "/" + certificateFile);
     std::string verifyPath(installPath);
-    std::string CSRPath(certDir + "/" + CSRFile);
+    std::string csrPath(certDir + "/" + CSRFile);
     std::string privateKeyPath(certDir + "/" + privateKeyFile);
     std::vector<std::string> alternativeNames{"localhost1", "localhost2"};
     std::string challengePassword("Password");
@@ -1249,7 +1240,7 @@ TEST_F(TestCertificates, TestECKeyGenerationwithDefaultKeyCurveId)
     Manager manager(bus, event, objPath.c_str(), type, std::move(unit),
                     std::move(installPath));
     Status status;
-    CSR csr(bus, objPath.c_str(), CSRPath.c_str(), status);
+    CSR csr(bus, objPath.c_str(), csrPath.c_str(), status);
     MainApp mainApp(&manager, &csr);
     mainApp.generateCSR(alternativeNames, challengePassword, city, commonName,
                         contactPerson, country, email, givenName, initials,
@@ -1257,7 +1248,7 @@ TEST_F(TestCertificates, TestECKeyGenerationwithDefaultKeyCurveId)
                         organization, organizationalUnit, state, surname,
                         unstructuredName);
     sleep(10);
-    EXPECT_TRUE(fs::exists(CSRPath));
+    EXPECT_TRUE(fs::exists(csrPath));
     EXPECT_TRUE(fs::exists(privateKeyPath));
 }
 
@@ -1267,10 +1258,10 @@ TEST_F(TestCertificates, TestECKeyGeneration)
 {
     std::string endpoint("https");
     std::string unit;
-    CertificateType type = CertificateType::Server;
+    CertificateType type = CertificateType::server;
     std::string installPath(certDir + "/" + certificateFile);
     std::string verifyPath(installPath);
-    std::string CSRPath(certDir + "/" + CSRFile);
+    std::string csrPath(certDir + "/" + CSRFile);
     std::string privateKeyPath(certDir + "/" + privateKeyFile);
     std::vector<std::string> alternativeNames{"localhost1", "localhost2"};
     std::string challengePassword("Password");
@@ -1296,17 +1287,17 @@ TEST_F(TestCertificates, TestECKeyGeneration)
     Manager manager(bus, event, objPath.c_str(), type, std::move(unit),
                     std::move(installPath));
     Status status;
-    CSR csr(bus, objPath.c_str(), CSRPath.c_str(), status);
+    CSR csr(bus, objPath.c_str(), csrPath.c_str(), status);
     MainApp mainApp(&manager, &csr);
     mainApp.generateCSR(alternativeNames, challengePassword, city, commonName,
                         contactPerson, country, email, givenName, initials,
                         keyBitLength, keyCurveId, keyPairAlgorithm, keyUsage,
                         organization, organizationalUnit, state, surname,
                         unstructuredName);
-    std::cout << "CSRPath: " << CSRPath << std::endl
+    std::cout << "CSRPath: " << csrPath << std::endl
               << "privateKeyPath: " << privateKeyPath << std::endl;
     sleep(10);
-    EXPECT_TRUE(fs::exists(CSRPath));
+    EXPECT_TRUE(fs::exists(csrPath));
     EXPECT_TRUE(fs::exists(privateKeyPath));
 }
 
@@ -1317,10 +1308,10 @@ TEST_F(TestCertificates, TestRSAKeyWithUnsupportedKeyBitLength)
 {
     std::string endpoint("https");
     std::string unit;
-    CertificateType type = CertificateType::Server;
+    CertificateType type = CertificateType::server;
     std::string installPath(certDir + "/" + certificateFile);
     std::string verifyPath(installPath);
-    std::string CSRPath(certDir + "/" + CSRFile);
+    std::string csrPath(certDir + "/" + CSRFile);
     std::string privateKeyPath(certDir + "/" + privateKeyFile);
     std::vector<std::string> alternativeNames{"localhost1", "localhost2"};
     std::string challengePassword("Password");
@@ -1346,14 +1337,14 @@ TEST_F(TestCertificates, TestRSAKeyWithUnsupportedKeyBitLength)
     Manager manager(bus, event, objPath.c_str(), type, std::move(unit),
                     std::move(installPath));
     Status status;
-    CSR csr(bus, objPath.c_str(), CSRPath.c_str(), status);
+    CSR csr(bus, objPath.c_str(), csrPath.c_str(), status);
     MainApp mainApp(&manager, &csr);
     mainApp.generateCSR(alternativeNames, challengePassword, city, commonName,
                         contactPerson, country, email, givenName, initials,
                         keyBitLength, keyCurveId, keyPairAlgorithm, keyUsage,
                         organization, organizationalUnit, state, surname,
                         unstructuredName);
-    EXPECT_FALSE(fs::exists(CSRPath));
+    EXPECT_FALSE(fs::exists(csrPath));
     EXPECT_FALSE(fs::exists(privateKeyPath));
 }
 
@@ -1363,10 +1354,10 @@ TEST_F(TestCertificates, TestRSAKeyFileNotPresentCase)
 {
     std::string endpoint("https");
     std::string unit;
-    CertificateType type = CertificateType::Server;
+    CertificateType type = CertificateType::server;
     std::string installPath(certDir + "/" + certificateFile);
     std::string verifyPath(installPath);
-    std::string CSRPath(certDir + "/" + CSRFile);
+    std::string csrPath(certDir + "/" + CSRFile);
     std::string privateKeyPath(certDir + "/" + privateKeyFile);
     std::vector<std::string> alternativeNames{"localhost1", "localhost2"};
     std::string challengePassword("Password");
@@ -1396,14 +1387,14 @@ TEST_F(TestCertificates, TestRSAKeyFileNotPresentCase)
     fs::remove(rsaPrivateKeyFilePath);
 
     Status status;
-    CSR csr(bus, objPath.c_str(), CSRPath.c_str(), status);
+    CSR csr(bus, objPath.c_str(), csrPath.c_str(), status);
     MainApp mainApp(&manager, &csr);
     mainApp.generateCSR(alternativeNames, challengePassword, city, commonName,
                         contactPerson, country, email, givenName, initials,
                         keyBitLength, keyCurveId, keyPairAlgorithm, keyUsage,
                         organization, organizationalUnit, state, surname,
                         unstructuredName);
-    EXPECT_FALSE(fs::exists(CSRPath));
+    EXPECT_FALSE(fs::exists(csrPath));
     EXPECT_FALSE(fs::exists(privateKeyPath));
 }
 
@@ -1414,10 +1405,10 @@ TEST_F(TestCertificates, TestRSAKeyFromRSAKeyFileIsWrittenIntoPrivateKeyFile)
 {
     std::string endpoint("https");
     std::string unit;
-    CertificateType type = CertificateType::Server;
+    CertificateType type = CertificateType::server;
     std::string installPath(certDir + "/" + certificateFile);
     std::string verifyPath(installPath);
-    std::string CSRPath(certDir + "/" + CSRFile);
+    std::string csrPath(certDir + "/" + CSRFile);
     std::string privateKeyPath(certDir + "/" + privateKeyFile);
     std::vector<std::string> alternativeNames{"localhost1", "localhost2"};
     std::string challengePassword("Password");
@@ -1443,7 +1434,7 @@ TEST_F(TestCertificates, TestRSAKeyFromRSAKeyFileIsWrittenIntoPrivateKeyFile)
     Manager manager(bus, event, objPath.c_str(), type, std::move(unit),
                     std::move(installPath));
     Status status;
-    CSR csr(bus, objPath.c_str(), CSRPath.c_str(), status);
+    CSR csr(bus, objPath.c_str(), csrPath.c_str(), status);
     MainApp mainApp(&manager, &csr);
     mainApp.generateCSR(alternativeNames, challengePassword, city, commonName,
                         contactPerson, country, email, givenName, initials,
@@ -1451,7 +1442,7 @@ TEST_F(TestCertificates, TestRSAKeyFromRSAKeyFileIsWrittenIntoPrivateKeyFile)
                         organization, organizationalUnit, state, surname,
                         unstructuredName);
     sleep(10);
-    EXPECT_TRUE(fs::exists(CSRPath));
+    EXPECT_TRUE(fs::exists(csrPath));
     EXPECT_TRUE(fs::exists(privateKeyPath));
 }
 
@@ -1459,7 +1450,7 @@ TEST_F(TestCertificates, TestRSAKeyFromRSAKeyFileIsWrittenIntoPrivateKeyFile)
 TEST_F(TestCertificates, TestGenerateRSAPrivateKeyFile)
 {
     std::string endpoint("https");
-    CertificateType type = CertificateType::Server;
+    CertificateType type = CertificateType::server;
     std::string installPath(certDir + "/" + certificateFile);
     std::string verifyUnit(ManagerInTest::unitToRestartInTest);
     auto objPath = std::string(objectNamePrefix) + '/' +
@@ -1600,7 +1591,7 @@ class AuthoritiesListTest : public testing::Test
         });
     };
 
-    sdbusplus::bus::bus bus;
+    sdbusplus::bus_t bus;
     fs::path authoritiesListFolder;
     fs::path sourceAuthoritiesListFile;
 };
@@ -1609,9 +1600,9 @@ class AuthoritiesListTest : public testing::Test
 // authorities list
 TEST_F(AuthoritiesListTest, InstallAll)
 {
-    std::string endpoint("ldap");
+    std::string endpoint("truststore");
     std::string verifyUnit(ManagerInTest::unitToRestartInTest);
-    CertificateType type = CertificateType::Authority;
+    CertificateType type = CertificateType::authority;
 
     std::string object = std::string(objectNamePrefix) + '/' +
                          certificateTypeToString(type) + '/' + endpoint;
@@ -1637,9 +1628,9 @@ TEST_F(AuthoritiesListTest, InstallAll)
 // in the installation path at boot up
 TEST_F(AuthoritiesListTest, RecoverAtBootUp)
 {
-    std::string endpoint("ldap");
+    std::string endpoint("truststore");
     std::string verifyUnit(ManagerInTest::unitToRestartInTest);
-    CertificateType type = CertificateType::Authority;
+    CertificateType type = CertificateType::authority;
 
     std::string object = std::string(objectNamePrefix) + '/' +
                          certificateTypeToString(type) + '/' + endpoint;
@@ -1670,8 +1661,8 @@ TEST_F(AuthoritiesListTest, RecoverAtBootUp)
         std::string name = "root_" + std::to_string(i);
         EXPECT_EQ(certs[i]->subject(), "O=openbmc-project.xyz,CN=" + name);
         EXPECT_EQ(certs[i]->issuer(), "O=openbmc-project.xyz,CN=" + name);
-        std::string symbolLink =
-            authoritiesListFolder / (certs[i]->getCertId().substr(0, 8) + ".0");
+        std::string symbolLink = authoritiesListFolder /
+                                 (certs[i]->getCertId().substr(0, 8) + ".0");
         expectedFiles.insert(symbolLink);
         expectedFiles.insert(certs[i]->getCertFilePath());
         ASSERT_TRUE(fs::exists(symbolLink));
@@ -1689,9 +1680,9 @@ TEST_F(AuthoritiesListTest, RecoverAtBootUp)
 
 TEST_F(AuthoritiesListTest, InstallAndDelete)
 {
-    std::string endpoint("ldap");
+    std::string endpoint("truststore");
     std::string verifyUnit(ManagerInTest::unitToRestartInTest);
-    CertificateType type = CertificateType::Authority;
+    CertificateType type = CertificateType::authority;
 
     std::string object = std::string(objectNamePrefix) + '/' +
                          certificateTypeToString(type) + '/' + endpoint;
@@ -1719,7 +1710,7 @@ TEST_F(AuthoritiesListTest, InstallAndDelete)
 TEST_F(AuthoritiesListTest, InstallAllWrongManagerType)
 {
     std::string endpoint("ldap");
-    CertificateType type = CertificateType::Server;
+    CertificateType type = CertificateType::server;
 
     std::string object = std::string(objectNamePrefix) + '/' +
                          certificateTypeToString(type) + '/' + endpoint;
@@ -1732,7 +1723,7 @@ TEST_F(AuthoritiesListTest, InstallAllWrongManagerType)
     EXPECT_THROW(serverManager.installAll(sourceAuthoritiesListFile),
                  sdbusplus::xyz::openbmc_project::Common::Error::NotAllowed);
 
-    type = CertificateType::Client;
+    type = CertificateType::client;
     object = std::string(objectNamePrefix) + '/' +
              certificateTypeToString(type) + '/' + endpoint;
     ManagerInTest clientManager(bus, event, object.c_str(), type, "",
@@ -1743,9 +1734,9 @@ TEST_F(AuthoritiesListTest, InstallAllWrongManagerType)
 
 TEST_F(AuthoritiesListTest, InstallAllTwice)
 {
-    std::string endpoint("ldap");
+    std::string endpoint("truststore");
     std::string verifyUnit(ManagerInTest::unitToRestartInTest);
-    CertificateType type = CertificateType::Authority;
+    CertificateType type = CertificateType::authority;
 
     std::string object = std::string(objectNamePrefix) + '/' +
                          certificateTypeToString(type) + '/' + endpoint;
@@ -1761,15 +1752,15 @@ TEST_F(AuthoritiesListTest, InstallAllTwice)
 
     ASSERT_EQ(manager.installAll(sourceAuthoritiesListFile).size(),
               maxNumAuthorityCertificates);
-    EXPECT_THROW(manager.installAll(sourceAuthoritiesListFile).size(),
+    EXPECT_THROW(manager.installAll(sourceAuthoritiesListFile),
                  sdbusplus::xyz::openbmc_project::Common::Error::NotAllowed);
 }
 
 TEST_F(AuthoritiesListTest, InstallAllMissSourceFile)
 {
-    std::string endpoint("ldap");
+    std::string endpoint("truststore");
     std::string verifyUnit(ManagerInTest::unitToRestartInTest);
-    CertificateType type = CertificateType::Authority;
+    CertificateType type = CertificateType::authority;
 
     std::string object = std::string(objectNamePrefix) + '/' +
                          certificateTypeToString(type) + '/' + endpoint;
@@ -1786,9 +1777,9 @@ TEST_F(AuthoritiesListTest, InstallAllMissSourceFile)
 
 TEST_F(AuthoritiesListTest, TooManyRootCertificates)
 {
-    std::string endpoint("ldap");
+    std::string endpoint("truststore");
     std::string verifyUnit(ManagerInTest::unitToRestartInTest);
-    CertificateType type = CertificateType::Authority;
+    CertificateType type = CertificateType::authority;
 
     std::string object = std::string(objectNamePrefix) + '/' +
                          certificateTypeToString(type) + '/' + endpoint;
@@ -1805,9 +1796,9 @@ TEST_F(AuthoritiesListTest, TooManyRootCertificates)
 
 TEST_F(AuthoritiesListTest, CertInWrongFormat)
 {
-    std::string endpoint("ldap");
+    std::string endpoint("truststore");
     std::string verifyUnit(ManagerInTest::unitToRestartInTest);
-    CertificateType type = CertificateType::Authority;
+    CertificateType type = CertificateType::authority;
 
     std::string object = std::string(objectNamePrefix) + '/' +
                          certificateTypeToString(type) + '/' + endpoint;
@@ -1831,9 +1822,9 @@ TEST_F(AuthoritiesListTest, CertInWrongFormat)
 
 TEST_F(AuthoritiesListTest, ReplaceAll)
 {
-    std::string endpoint("ldap");
+    std::string endpoint("truststore");
     std::string verifyUnit(ManagerInTest::unitToRestartInTest);
-    CertificateType type = CertificateType::Authority;
+    CertificateType type = CertificateType::authority;
 
     std::string object = std::string(objectNamePrefix) + '/' +
                          certificateTypeToString(type) + '/' + endpoint;

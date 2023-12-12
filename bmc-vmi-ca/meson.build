@@ -2,7 +2,6 @@ bmc_vmi_ca_deps = [
     phosphor_dbus_interfaces_dep,
     phosphor_logging_dep,
     sdbusplus_dep,
-    sdeventplus_dep,
 ]
 
 bmc_vmi_ca_lib = static_library(
@@ -21,7 +20,7 @@ bmc_vmi_ca_dep = declare_dependency(
 )
 
 executable(
-    'bmc_vmi_ca',
+    'bmc-vmi-ca',
     'mainapp.cpp',
     include_directories: '..',
     dependencies: bmc_vmi_ca_dep,
