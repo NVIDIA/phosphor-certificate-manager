@@ -68,7 +68,7 @@ inline constexpr CertificateType stringToCertificateType(std::string_view type)
     {
         return CertificateType::securebootDatabase;
     }
-    return CertificateType::Unsupported;
+    return CertificateType::unsupported;
 }
 
 namespace internal

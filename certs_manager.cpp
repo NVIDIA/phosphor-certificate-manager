@@ -145,8 +145,8 @@ Manager::Manager(sdbusplus::bus_t& bus, sdeventplus::Event& event,
         fs::path certDirectory;
         try
         {
-            if (certType == CertificateType::Authority ||
-                certType == CertificateType::SecureBootDatabase)
+            if (certType == CertificateType::authority ||
+                certType == CertificateType::securebootDatabase)
             {
                 certDirectory = certInstallPath;
             }
@@ -175,8 +175,8 @@ Manager::Manager(sdbusplus::bus_t& bus, sdeventplus::Event& event,
         }
 
         // Generating RSA private key file if certificate type is server/client
-        if (certType == CertificateType::Server ||
-            certType == CertificateType::Client)
+        if (certType == CertificateType::server ||
+            certType == CertificateType::client)
         {
             createRSAPrivateKeyFile();
         }
@@ -185,8 +185,8 @@ Manager::Manager(sdbusplus::bus_t& bus, sdeventplus::Event& event,
         createCertificates();
 
         // watch is not required for authority certificates
-        if (certType == CertificateType::Server ||
-            certType == CertificateType::Client)
+        if (certType == CertificateType::server ||
+            certType == CertificateType::client)
         {
             // watch for certificate file create/replace
             certWatchPtr = std::make_unique<Watch>(event, certInstallPath,
@@ -217,7 +217,7 @@ Manager::Manager(sdbusplus::bus_t& bus, sdeventplus::Event& event,
                 }
             });
         }
-        else if (certType == CertificateType::Authority)
+        else if (certType == CertificateType::authority)
         {
             try
             {
@@ -245,7 +245,7 @@ Manager::Manager(sdbusplus::bus_t& bus, sdeventplus::Event& event,
                     "ERROR_STR", ex);
             }
         }
-        else if (certType == CertificateType::SecureBootDatabase)
+        else if (certType == CertificateType::securebootDatabase)
         {
             sigManager = std::make_unique<phosphor::certs::SigManager>(
                 bus, event, path, certType, installPath + "/signature");
@@ -261,8 +261,8 @@ Manager::Manager(sdbusplus::bus_t& bus, sdeventplus::Event& event,
 
 std::string Manager::install(const std::string filePath)
 {
-    if (certType == CertificateType::Server ||
-        certType == CertificateType::Client)
+    if (certType == CertificateType::server ||
+        certType == CertificateType::client)
     {
         if (!installedCerts.empty())
         {
@@ -278,7 +278,7 @@ std::string Manager::install(const std::string filePath)
     std::string certObjectPath;
     if (isCertificateUnique(filePath))
     {
-        if (certType == CertificateType::SecureBootDatabase)
+        if (certType == CertificateType::securebootDatabase)
         {
             auto certificateId = allocId();
             certObjectPath =
@@ -287,12 +287,13 @@ std::string Manager::install(const std::string filePath)
             {
                 installedCerts.emplace_back(std::make_unique<Certificate>(
                     bus, certObjectPath, certType, certInstallPath, filePath,
-                    certWatchPtr.get(), *this));
+                    certWatchPtr.get(), *this, /*restore=*/false));
             }
             catch (const std::exception& ex)
             {
-                log<level::ERR>("Error in certificate constructor",
-                                entry("ERROR_STR=%s", ex.what()));
+		lg2::error("Error in certificate constructor,ERROR_STR:{ERROR_STR}",
+                     "ERROR_STR", ex);
+
                 releaseId(certificateId);
             }
         }
@@ -302,7 +303,7 @@ std::string Manager::install(const std::string filePath)
             certIdCounter++;
             installedCerts.emplace_back(std::make_unique<Certificate>(
                 bus, certObjectPath, certType, certInstallPath, filePath,
-                certWatchPtr.get(), *this));
+                certWatchPtr.get(), *this, /*restore=*/false));
         }
         reloadOrReset(unitToRestart);
     }
@@ -432,7 +433,7 @@ void Manager::deleteAll()
     certIdCounter = 1;
     storageUpdate();
     reloadOrReset(unitToRestart);
-    if (certType == CertificateType::SecureBootDatabase)
+    if (certType == CertificateType::securebootDatabase)
     {
         certIdUnused.clear();
         certIdCounter = 1;
@@ -453,7 +454,7 @@ void Manager::deleteCertificate(const Certificate* const certificate)
     });
     if (certIt != installedCerts.end())
     {
-        if (certType == CertificateType::SecureBootDatabase)
+        if (certType == CertificateType::securebootDatabase)
         {
             auto certificateId =
                 std::stoull(fs::path(certificate->getObjectPath()).filename());
@@ -1042,12 +1043,12 @@ void Manager::createCertificates()
             }
         }
     }
-    else if (certType == CertificateType::SecureBootDatabase)
+    else if (certType == CertificateType::securebootDatabase)
     {
         // Check whether install path is a directory.
         if (!fs::is_directory(certInstallPath))
         {
-            log<level::ERR>("Certificate installation path exists and it is "
+            lg2::error("Certificate installation path exists and it is "
                             "not a directory");
             elog<InternalFailure>();
             return;
@@ -1075,12 +1076,12 @@ void Manager::createCertificates()
                         installedCerts.emplace_back(
                             std::make_unique<Certificate>(
                                 bus, certObjectPath, certType, certInstallPath,
-                                path.path(), certWatchPtr.get(), *this));
+                                path.path(), certWatchPtr.get(), *this, /*restore=*/false));
                     }
                     catch (const std::exception& ex)
                     {
-                        log<level::ERR>("Error in certificate constructor",
-                                        entry("ERROR_STR=%s", ex.what()));
+			lg2::error("Error in certificate constructor,ERROR_STR:{ERROR_STR}",
+                             "ERROR_STR", ex);
                         releaseId(certificateId);
                     }
                 }

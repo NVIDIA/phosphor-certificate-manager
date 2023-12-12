@@ -89,7 +89,7 @@ class SigManager : public internal::sigManagerInterface
      *  @return     Checking result. True if signature is unique, false if
      * not.
      */
-    bool isSignatureUnique(const std::string& SignatureString);
+    bool isSignatureUnique(const std::string& signatureString);
 
     /** @brief Allocate a signature ID.
      *  @param[in] id - The designated ID to allocated. 0 if no designated.
@@ -106,7 +106,7 @@ class SigManager : public internal::sigManagerInterface
     sdbusplus::bus::bus& bus;
 
     // sdevent Event handle
-    sdeventplus::Event& event;
+    [[maybe_unused]] sdeventplus::Event& event;
 
     /** @brief object path */
     std::string objectPath;

@@ -61,7 +61,7 @@ config_data.set(
 )
 
 config_data.set(
-    'CLASS_VERSION',
+    'classVersion',
     1,
     description : 'Class version to register with Cereal.'
 )

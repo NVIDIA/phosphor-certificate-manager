@@ -63,7 +63,7 @@ int main(int argc, char** argv)
     std::string certPath;
     auto certificateType =
         phosphor::certs::stringToCertificateType(arguments.typeStr);
-    if (certificateType == phosphor::certs::CertificateType::SecureBootDatabase)
+    if (certificateType == phosphor::certs::CertificateType::securebootDatabase)
     {
         // Adjusting objPath for SecureBootDatabase
         objPath =

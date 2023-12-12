@@ -9,7 +9,7 @@
 // From cereal documentation;
 // "This macro should be placed at global scope"
 CEREAL_CLASS_VERSION(phosphor::certs::internal::UefiSignatureOwnerIntf,
-                     CLASS_VERSION);
+                     classVersion);
 
 namespace phosphor::certs
 {

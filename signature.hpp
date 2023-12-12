@@ -108,7 +108,7 @@ class Signature : public SignatureInterface
     std::string objectPath;
 
     /** @brief Type of the certificate / signature */
-    CertificateType certType;
+    [[maybe_unused]] CertificateType certType;
 
     /** @brief Stores signature file path */
     std::string signatureFilePath;

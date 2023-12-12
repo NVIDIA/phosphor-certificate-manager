@@ -20,7 +20,7 @@ inline constexpr char defaultRSAPrivateKeyFileName[] = ".rsaprivkey.pem";
 inline constexpr size_t maxNumAuthorityCertificates = @authority_limit@;
 
 /* Class version to register with Cereal. */
-inline constexpr size_t CLASS_VERSION = @CLASS_VERSION@;
+inline constexpr size_t classVersion = @classVersion@;
 
 /* The default name of the authorities list file. */
 inline constexpr char defaultAuthoritiesListFileName[] = "@authorities_list_name@";

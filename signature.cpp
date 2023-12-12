@@ -24,7 +24,7 @@
 // Register class version
 // From cereal documentation;
 // "This macro should be placed at global scope"
-CEREAL_CLASS_VERSION(phosphor::certs::Signature, CLASS_VERSION);
+CEREAL_CLASS_VERSION(phosphor::certs::Signature, classVersion);
 
 namespace phosphor::certs
 {
