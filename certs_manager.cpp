@@ -148,6 +148,7 @@ Manager::Manager(sdbusplus::bus::bus& bus, sdeventplus::Event& event,
         try
         {
             if (certType == CertificateType::Authority ||
+                certType == CertificateType::AuthorityBios ||
                 certType == CertificateType::SecureBootDatabase)
             {
                 certDirectory = certInstallPath;
@@ -219,7 +220,8 @@ Manager::Manager(sdbusplus::bus::bus& bus, sdeventplus::Event& event,
                 }
             });
         }
-        else if (certType == CertificateType::Authority)
+        else if ((certType == CertificateType::Authority) ||
+                 (certType == CertificateType::AuthorityBios))
         {
             try
             {
@@ -269,7 +271,8 @@ std::string Manager::install(const std::string filePath)
             elog<NotAllowed>(NotAllowedReason("Certificate already exist"));
         }
     }
-    else if (certType == CertificateType::Authority &&
+    else if (((certType == CertificateType::Authority) ||
+              (certType == CertificateType::AuthorityBios)) &&
              installedCerts.size() >= maxNumAuthorityCertificates)
     {
         elog<NotAllowed>(NotAllowedReason("Certificates limit reached"));
@@ -317,7 +320,8 @@ std::string Manager::install(const std::string filePath)
 std::vector<sdbusplus::message::object_path>
     Manager::installAll(const std::string filePath)
 {
-    if (certType != CertificateType::Authority)
+    if ((certType != CertificateType::Authority) &&
+        (certType != CertificateType::AuthorityBios))
     {
         elog<NotAllowed>(
             NotAllowedReason("The InstallAll interface is only allowed for "
@@ -420,7 +424,8 @@ void Manager::deleteAll()
     // deletion of certificates
     installedCerts.clear();
     // If the authorities list exists, delete it as well
-    if (certType == CertificateType::Authority)
+    if ((certType == CertificateType::Authority) ||
+        (certType == CertificateType::AuthorityBios))
     {
         if (fs::path authoritiesList =
                 fs::path(certInstallPath) / defaultAuthoritiesListFileName;
@@ -970,7 +975,8 @@ void Manager::createCertificates()
 {
     auto certObjectPath = objectPath + '/';
 
-    if (certType == CertificateType::Authority)
+    if ((certType == CertificateType::Authority) ||
+        (certType == CertificateType::AuthorityBios))
     {
         // Check whether install path is a directory.
         if (!fs::is_directory(certInstallPath))
@@ -1159,7 +1165,8 @@ EVPPkeyPtr Manager::getRSAKeyPair(const int64_t keyBitLength)
 
 void Manager::storageUpdate()
 {
-    if (certType == CertificateType::Authority)
+    if ((certType == CertificateType::Authority) ||
+        (certType == CertificateType::AuthorityBios))
     {
         // Remove symbolic links in the certificate directory
         for (auto& certPath : fs::directory_iterator(certInstallPath))

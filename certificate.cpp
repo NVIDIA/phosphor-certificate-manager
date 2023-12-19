@@ -48,6 +48,7 @@ using InvalidCertificateError =
     ::sdbusplus::xyz::openbmc_project::Certs::Error::InvalidCertificate;
 using ::phosphor::logging::xyz::openbmc_project::Certs::InvalidCertificate;
 using ::sdbusplus::xyz::openbmc_project::Common::Error::InternalFailure;
+using ::sdbusplus::xyz::openbmc_project::Common::server::UUID;
 
 // RAII support for openSSL functions.
 using BIOMemPtr = std::unique_ptr<BIO, decltype(&::BIO_free)>;
@@ -219,7 +220,8 @@ std::string
 std::string
     Certificate::generateCertFilePath(const std::string& certSrcFilePath)
 {
-    if (certType == CertificateType::Authority)
+    if ((certType == CertificateType::Authority)||
+        (certType == CertificateType::AuthorityBios))
     {
         return generateAuthCertFilePath(certSrcFilePath);
     }
@@ -253,6 +255,7 @@ Certificate::Certificate(sdbusplus::bus::bus& bus, const std::string& objPath,
     typeFuncMap[CertificateType::Server] = installHelper;
     typeFuncMap[CertificateType::Client] = installHelper;
     typeFuncMap[CertificateType::Authority] = [](const std::string&) {};
+    typeFuncMap[CertificateType::AuthorityBios] = [](const std::string&) {};
     typeFuncMap[CertificateType::SecureBootDatabase] = [](const std::string&) {
     };
 
@@ -263,6 +266,7 @@ Certificate::Certificate(sdbusplus::bus::bus& bus, const std::string& objPath,
     appendKeyMap[CertificateType::Server] = appendPrivateKey;
     appendKeyMap[CertificateType::Client] = appendPrivateKey;
     appendKeyMap[CertificateType::Authority] = [](const std::string&) {};
+    appendKeyMap[CertificateType::AuthorityBios] = [](const std::string&) {};
     appendKeyMap[CertificateType::SecureBootDatabase] = [](const std::string&) {
     };
 
@@ -276,6 +280,11 @@ Certificate::Certificate(sdbusplus::bus::bus& bus, const std::string& objPath,
     {
         ownerIntf = std::make_unique<internal::UefiSignatureOwnerIntf>(
             bus, objectPath, certFilePath + ".owner");
+    }
+
+    if (certType == CertificateType::AuthorityBios)
+    {
+        uuidIntf = std::make_unique<UUID>(bus, objPath.c_str());
     }
 
     this->emit_object_added();
@@ -407,7 +416,8 @@ void Certificate::install(X509_STORE& x509Store, const std::string& pem)
 {
     log<level::INFO>("Certificate install ", entry("PEM_STR=%s", pem.data()));
 
-    if (certType != CertificateType::Authority)
+    if ((certType != CertificateType::Authority)&&
+        (certType != CertificateType::AuthorityBios))
     {
         log<level::ERR>("Bulk install error: Unsupported Type; only authority "
                         "supports bulk install",
@@ -461,7 +471,8 @@ bool Certificate::isSame(const std::string& certPath)
 
 void Certificate::storageUpdate(std::optional<std::string> certSrcFilePath)
 {
-    if (certType == CertificateType::Authority)
+    if ((certType == CertificateType::Authority)||
+        (certType == CertificateType::AuthorityBios))
     {
         // Create symbolic link in the certificate directory
         std::string certFileX509Path;
