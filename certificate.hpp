@@ -44,7 +44,7 @@ inline constexpr const char* certificateTypeToString(CertificateType type)
         case CertificateType::client:
             return "client";
         case CertificateType::securebootDatabase:
-            return "securebootDatabase";
+            return "secureBootDatabase";
         default:
             return "unsupported";
     }
@@ -64,7 +64,7 @@ inline constexpr CertificateType stringToCertificateType(std::string_view type)
     {
         return CertificateType::client;
     }
-    if (type == "securebootDatabase")
+    if (type == "secureBootDatabase")
     {
         return CertificateType::securebootDatabase;
     }
