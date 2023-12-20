@@ -38,6 +38,7 @@
 #include <utility>
 #include <xyz/openbmc_project/Certs/error.hpp>
 #include <xyz/openbmc_project/Common/error.hpp>
+
 namespace phosphor::certs
 {
 namespace
@@ -304,6 +305,9 @@ std::string Manager::install(const std::string filePath)
                 certWatchPtr.get(), *this));
         }
         reloadOrReset(unitToRestart);
+        using namespace phosphor::logging;
+        sendEvent(MESSAGE_TYPE::RESOURCE_CREATED, Entry::Level::Informational,
+                  std::vector<std::string>{}, certObjectPath);
     }
     else
     {
@@ -458,9 +462,14 @@ void Manager::deleteCertificate(const Certificate* const certificate)
                 std::stoull(fs::path(certificate->getObjectPath()).filename());
             releaseId(certificateId);
         }
+        auto objectPath = certificate->getObjectPath();
         installedCerts.erase(certIt);
         storageUpdate();
         reloadOrReset(unitToRestart);
+        // send an event
+        using namespace phosphor::logging;
+        sendEvent(MESSAGE_TYPE::RESOURCE_DELETED, Entry::Level::Informational,
+                  std::vector<std::string>{}, objectPath);
     }
     else
     {
@@ -481,11 +490,8 @@ void Manager::replaceCertificate(Certificate* const certificate,
 
         // send an event
         using namespace phosphor::logging;
-        std::string dbusObjpath = certificate->getObjectPath();
-        std::vector<std::string> msgArgs{};
-        // Create dbus log, to be picked by redfish framework to send event.
         sendEvent(MESSAGE_TYPE::RESOURCE_CREATED, Entry::Level::Informational,
-                  msgArgs, dbusObjpath);
+                  std::vector<std::string>{}, certificate->getObjectPath());
     }
     else
     {
