@@ -51,8 +51,6 @@ int main(int argc, char** argv)
     auto bus = sdbusplus::bus::new_default();
     auto objPath = std::string(objectNamePrefix) + '/' + arguments.typeStr +
                    '/' + arguments.endpoint;
-    // Add sdbusplus ObjectManager
-    sdbusplus::server::manager_t objManager(bus, objPath.c_str());
 
     // Get default event loop
     auto event = sdeventplus::Event::get_default();
@@ -69,7 +67,9 @@ int main(int argc, char** argv)
         objPath =
             "/xyz/openbmc_project/secureBootDatabase/" + arguments.endpoint;
     }
-
+    
+    // Add sdbusplus ObjectManager
+    sdbusplus::server::manager_t objManager(bus, objPath.c_str());
 
     phosphor::certs::Manager manager(bus, event, objPath.c_str(),
                                      certificateType, arguments.unit,
