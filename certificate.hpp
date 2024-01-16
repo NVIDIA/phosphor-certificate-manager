@@ -29,6 +29,7 @@ enum class CertificateType
     Server,
     Client,
     SecureBootDatabase,
+    AuthorityBios,
     Unsupported,
 };
 
@@ -38,6 +39,8 @@ inline constexpr const char* certificateTypeToString(CertificateType type)
     {
         case CertificateType::Authority:
             return "authority";
+        case CertificateType::AuthorityBios:
+            return "authorityBios";
         case CertificateType::Server:
             return "server";
         case CertificateType::Client:
@@ -54,6 +57,10 @@ inline constexpr CertificateType stringToCertificateType(std::string_view type)
     if (type == "authority")
     {
         return CertificateType::Authority;
+    }
+    if (type == "authorityBios")
+    {
+        return CertificateType::AuthorityBios;
     }
     if (type == "server")
     {
@@ -327,6 +334,9 @@ class Certificate : public internal::CertificateInterface
 
     /** @brief Interface of UefiSignatureOwner */
     std::unique_ptr<internal::UefiSignatureOwnerIntf> ownerIntf;
+
+    /** @brief Interface of UUID */
+    std::unique_ptr<sdbusplus::xyz::openbmc_project::Common::server::UUID> uuidIntf;
 };
 
 } // namespace phosphor::certs

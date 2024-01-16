@@ -9,4 +9,4 @@ CERTPATH=/etc/ssl/certs/authorityBios
 UNIT=bmcweb.service
 
 #Type of service
-TYPE=authority
+TYPE=authorityBios
