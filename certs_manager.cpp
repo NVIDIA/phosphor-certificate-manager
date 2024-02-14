@@ -3,7 +3,6 @@
 #include "certs_manager.hpp"
 
 #include "lsp.hpp"
-
 #include "x509_utils.hpp"
 
 #include <openssl/asn1.h>
@@ -40,7 +39,7 @@
 #include <exception>
 #include <fstream>
 #include <utility>
-
+#include <phosphor-logging/redfish_event_log.hpp>
 namespace phosphor::certs
 {
 namespace
@@ -146,6 +145,7 @@ Manager::Manager(sdbusplus::bus_t& bus, sdeventplus::Event& event,
         try
         {
             if (certType == CertificateType::authority ||
+                certType == CertificateType::authorityBios ||
                 certType == CertificateType::securebootDatabase)
             {
                 certDirectory = certInstallPath;
@@ -217,7 +217,8 @@ Manager::Manager(sdbusplus::bus_t& bus, sdeventplus::Event& event,
                 }
             });
         }
-        else if (certType == CertificateType::authority)
+        else if ((certType == CertificateType::authority)||
+                 (certType == CertificateType::authorityBios))
         {
             try
             {
@@ -269,7 +270,8 @@ std::string Manager::install(const std::string filePath)
             elog<NotAllowed>(NotAllowedReason("Certificate already exist"));
         }
     }
-    else if (certType == CertificateType::authority &&
+    else if (((certType == CertificateType::authority) ||
+              (certType == CertificateType::authorityBios)) &&
              installedCerts.size() >= maxNumAuthorityCertificates)
     {
         elog<NotAllowed>(NotAllowedReason("Certificates limit reached"));
@@ -306,6 +308,9 @@ std::string Manager::install(const std::string filePath)
                 certWatchPtr.get(), *this, /*restore=*/false));
         }
         reloadOrReset(unitToRestart);
+        using namespace phosphor::logging;
+        sendEvent(MESSAGE_TYPE::RESOURCE_CREATED, Entry::Level::Informational,
+                  std::vector<std::string>{}, certObjectPath);
     }
     else
     {
@@ -318,7 +323,8 @@ std::string Manager::install(const std::string filePath)
 std::vector<sdbusplus::message::object_path>
     Manager::installAll(const std::string filePath)
 {
-    if (certType != CertificateType::authority)
+    if ((certType != CertificateType::authority) &&
+        (certType != CertificateType::authorityBios))
     {
         elog<NotAllowed>(
             NotAllowedReason("The InstallAll interface is only allowed for "
@@ -421,7 +427,8 @@ void Manager::deleteAll()
     // deletion of certificates
     installedCerts.clear();
     // If the authorities list exists, delete it as well
-    if (certType == CertificateType::authority)
+    if ((certType == CertificateType::authority) ||
+        (certType == CertificateType::authorityBios))
     {
         if (fs::path authoritiesList = fs::path(certInstallPath) /
                                        defaultAuthoritiesListFileName;
@@ -460,9 +467,14 @@ void Manager::deleteCertificate(const Certificate* const certificate)
                 std::stoull(fs::path(certificate->getObjectPath()).filename());
             releaseId(certificateId);
         }
+        auto objectPath = certificate->getObjectPath();
         installedCerts.erase(certIt);
         storageUpdate();
         reloadOrReset(unitToRestart);
+        // send an event
+        using namespace phosphor::logging;
+        sendEvent(MESSAGE_TYPE::RESOURCE_DELETED, Entry::Level::Informational,
+                  std::vector<std::string>{}, objectPath);
     }
     else
     {
@@ -480,6 +492,11 @@ void Manager::replaceCertificate(Certificate* const certificate,
         certificate->install(filePath, false);
         storageUpdate();
         reloadOrReset(unitToRestart);
+
+        // send an event
+        using namespace phosphor::logging;
+        sendEvent(MESSAGE_TYPE::RESOURCE_CREATED, Entry::Level::Informational,
+                  std::vector<std::string>{}, certificate->getObjectPath());
     }
     else
     {
@@ -990,7 +1007,8 @@ void Manager::createCertificates()
 {
     auto certObjectPath = objectPath + '/';
 
-    if (certType == CertificateType::authority)
+    if ((certType == CertificateType::authority) ||
+        (certType == CertificateType::authorityBios))
     {
         // Check whether install path is a directory.
         if (!fs::is_directory(certInstallPath))
@@ -1182,7 +1200,8 @@ EVPPkeyPtr Manager::getRSAKeyPair(const int64_t keyBitLength)
 
 void Manager::storageUpdate()
 {
-    if (certType == CertificateType::authority)
+    if ((certType == CertificateType::authority) ||
+        (certType == CertificateType::authorityBios))
     {
         // Remove symbolic links in the certificate directory
         for (auto& certPath : fs::directory_iterator(certInstallPath))

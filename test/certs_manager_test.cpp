@@ -97,6 +97,21 @@ class TestCertificates : public ::testing::Test
         fs::remove_all("demoCA");
     }
 
+    void eventLoop(uint8_t numberOfTimes)
+    {
+        if (numberOfTimes == 0 || numberOfTimes > 15)
+        {
+            return;
+        }
+
+        for (int i = 0; i < numberOfTimes; i++)
+        {
+            bus.process_discard();
+            // wait for 1 seconds
+            bus.wait(1 * 1000000);
+        }
+    }
+
     void createNewCertificate(bool setNewCertId = false)
     {
         certificateFile = "cert.pem";
@@ -285,6 +300,8 @@ TEST_F(TestCertificates, InvokeServerInstall)
     MainApp mainApp(&manager);
     mainApp.install(certificateFile);
     EXPECT_TRUE(fs::exists(verifyPath));
+    // Process D-Bus calls
+    eventLoop(5);
 }
 
 /** @brief Check if client install routine is invoked for client setup
@@ -308,6 +325,8 @@ TEST_F(TestCertificates, InvokeClientInstall)
     MainApp mainApp(&manager);
     mainApp.install(certificateFile);
     EXPECT_TRUE(fs::exists(verifyPath));
+    // Process D-Bus calls
+    eventLoop(5);
 }
 
 /** @brief Check if storage install routine is invoked for storage setup
@@ -351,6 +370,8 @@ TEST_F(TestCertificates, InvokeAuthorityInstall)
 
     // Check that installed cert is identical to input one
     EXPECT_TRUE(compareFiles(certificateFile, verifyPath));
+    // Process D-Bus calls
+    eventLoop(5);
 }
 
 /** @brief Check if storage install routine is invoked for storage setup
@@ -391,6 +412,8 @@ TEST_F(TestCertificates, InvokeAuthorityInstallNeverExpiredRootCert)
 
     // Check that installed cert is identical to input one
     EXPECT_TRUE(compareFiles(certificateFile, verifyPath));
+    // Process D-Bus calls
+    eventLoop(5);
 }
 
 /** @brief Check if in authority mode user can't install the same
@@ -447,6 +470,8 @@ TEST_F(TestCertificates, InvokeInstallSameCertTwice)
     // Check that the original certificate has been not removed
     EXPECT_FALSE(fs::is_empty(verifyDir));
     EXPECT_TRUE(fs::exists(verifyPath));
+    // Process D-Bus calls
+    eventLoop(5);
 }
 
 /** @brief Check if in authority mode user can install a certificate with
@@ -505,6 +530,8 @@ TEST_F(TestCertificates, InvokeInstallSameSubjectTwice)
     // Check that the original/first certificate has been not removed
     EXPECT_FALSE(fs::is_empty(verifyDir));
     EXPECT_TRUE(fs::exists(verifyPath0));
+    // Process D-Bus calls
+    eventLoop(5);
 }
 
 /** @brief Check if in authority mode user can't install more than
@@ -556,7 +583,8 @@ TEST_F(TestCertificates, InvokeInstallAuthCertLimit)
         // Save current certificate file for later check
         verifyPaths.push_back(verifyPath);
     }
-
+    // Process D-Bus calls
+    eventLoop(8);
     // Prepare new certificatate
     createNewCertificate(true);
 
@@ -606,6 +634,8 @@ TEST_F(TestCertificates, CompareInstalledCertificate)
     mainApp.install(certificateFile);
     EXPECT_TRUE(fs::exists(verifyPath));
     EXPECT_TRUE(compareFiles(verifyPath, certificateFile));
+    // Process D-Bus calls
+    eventLoop(5);
 }
 
 /** @brief Check if install fails if certificate file is not found
@@ -639,6 +669,8 @@ TEST_F(TestCertificates, TestNoCertificateFile)
         },
         InternalFailure);
     EXPECT_FALSE(fs::exists(verifyPath));
+    // Process D-Bus calls
+    eventLoop(5);
 }
 
 /** @brief Test replacing existing certificate
@@ -669,6 +701,8 @@ TEST_F(TestCertificates, TestReplaceCertificate)
     EXPECT_NE(certs[0], nullptr);
     certs[0]->replace(certificateFile);
     EXPECT_TRUE(fs::exists(verifyPath));
+    // Process D-Bus calls
+    eventLoop(5);
 }
 
 /** @brief Test replacing existing certificate
@@ -692,7 +726,8 @@ TEST_F(TestCertificates, TestAuthorityReplaceCertificate)
         .WillRepeatedly(Return());
     MainApp mainApp(&manager);
     mainApp.install(certificateFile);
-
+    // Process D-Bus calls
+    eventLoop(3);
     std::vector<std::unique_ptr<Certificate>>& certs =
         manager.getCertificates();
 
@@ -772,6 +807,8 @@ TEST_F(TestCertificates, TestStorageDeleteCertificate)
 
     // Check if certificate placeholder is empty.
     EXPECT_TRUE(fs::is_empty(verifyDir));
+    // Process D-Bus calls
+    eventLoop(8);
 }
 
 /** @brief Check if install fails if certificate file is empty
@@ -809,6 +846,8 @@ TEST_F(TestCertificates, TestEmptyCertificateFile)
         InvalidCertificate);
     EXPECT_FALSE(fs::exists(verifyPath));
     fs::remove(emptyFile);
+    // Process D-Bus calls
+    eventLoop(3);
 }
 
 /** @brief Check if install fails if certificate file is corrupted
@@ -849,6 +888,8 @@ TEST_F(TestCertificates, TestInvalidCertificateFile)
         },
         InvalidCertificate);
     EXPECT_FALSE(fs::exists(verifyPath));
+    // Process D-Bus calls
+    eventLoop(3);
 }
 
 /**
@@ -889,6 +930,21 @@ class TestInvalidCertificate : public ::testing::Test
         fs::remove(keyFile);
     }
 
+    void eventLoop(uint8_t numberOfTimes)
+    {
+        if (numberOfTimes == 0 || numberOfTimes > 15)
+        {
+            return;
+        }
+
+        for (int i = 0; i < numberOfTimes; i++)
+        {
+            bus.process_discard();
+            // wait for 1 seconds
+            bus.wait(1 * 1000000);
+        }
+    }
+
   protected:
     sdbusplus::bus_t bus;
     std::string certificateFile;
@@ -926,6 +982,8 @@ TEST_F(TestInvalidCertificate, TestMissingPrivateKey)
         },
         InternalFailure);
     EXPECT_FALSE(fs::exists(verifyPath));
+    // Process D-Bus calls
+    eventLoop(3);
 }
 
 /** @brief Check install fails if ceritificate is missing in certificate file
@@ -958,6 +1016,8 @@ TEST_F(TestInvalidCertificate, TestMissingCeritificate)
         },
         InvalidCertificate);
     EXPECT_FALSE(fs::exists(verifyPath));
+    // Process D-Bus calls
+    eventLoop(3);
 }
 
 /** @brief Check if error is thrown when multiple certificates are installed
@@ -995,6 +1055,8 @@ TEST_F(TestCertificates, TestCertInstallNotAllowed)
             }
         },
         NotAllowed);
+    // Process D-Bus calls
+    eventLoop(3);
 }
 
 TEST_F(TestCertificates, TestGenerateCSR)
@@ -1476,6 +1538,22 @@ class AuthoritiesListTest : public testing::Test
         fs::create_directory(authoritiesListFolder);
         createAuthoritiesList(maxNumAuthorityCertificates);
     }
+
+    void eventLoop(uint8_t numberOfTimes)
+    {
+        if (numberOfTimes == 0 || numberOfTimes > 15)
+        {
+            return;
+        }
+
+        for (int i = 0; i < numberOfTimes; i++)
+        {
+            bus.process_discard();
+            // wait for 1 seconds
+            bus.wait(1 * 1000000);
+        }
+    }
+
     ~AuthoritiesListTest() override
     {
         fs::remove_all(authoritiesListFolder);
@@ -1622,6 +1700,8 @@ TEST_F(AuthoritiesListTest, InstallAll)
         EXPECT_EQ(manager.getCertificates()[i]->getObjectPath(), objects[i]);
     }
     verifyCertificates(manager.getCertificates());
+    // process D-Bus calls
+    eventLoop(5);
 }
 
 // Tests that the Authority Manager recovers from the authorities list persisted
@@ -1705,6 +1785,8 @@ TEST_F(AuthoritiesListTest, InstallAndDelete)
     {
         EXPECT_THAT(f.filename(), testing::AnyOf(".", ".."));
     }
+    // process D-Bus calls
+    eventLoop(3);
 }
 
 TEST_F(AuthoritiesListTest, InstallAllWrongManagerType)
@@ -1730,6 +1812,8 @@ TEST_F(AuthoritiesListTest, InstallAllWrongManagerType)
                                 authoritiesListFolder);
     EXPECT_THROW(clientManager.installAll(sourceAuthoritiesListFile),
                  sdbusplus::xyz::openbmc_project::Common::Error::NotAllowed);
+    // process D-Bus calls
+    eventLoop(3);
 }
 
 TEST_F(AuthoritiesListTest, InstallAllTwice)
@@ -1754,6 +1838,8 @@ TEST_F(AuthoritiesListTest, InstallAllTwice)
               maxNumAuthorityCertificates);
     EXPECT_THROW(manager.installAll(sourceAuthoritiesListFile),
                  sdbusplus::xyz::openbmc_project::Common::Error::NotAllowed);
+    // process D-Bus calls
+    eventLoop(3);
 }
 
 TEST_F(AuthoritiesListTest, InstallAllMissSourceFile)
@@ -1773,6 +1859,8 @@ TEST_F(AuthoritiesListTest, InstallAllMissSourceFile)
 
     EXPECT_THROW(manager.installAll(authoritiesListFolder / "trust_bundle"),
                  InternalFailure);
+    // process D-Bus calls
+    eventLoop(3);
 }
 
 TEST_F(AuthoritiesListTest, TooManyRootCertificates)
@@ -1792,6 +1880,8 @@ TEST_F(AuthoritiesListTest, TooManyRootCertificates)
     createAuthoritiesList(maxNumAuthorityCertificates + 1);
     EXPECT_THROW(manager.installAll(sourceAuthoritiesListFile),
                  sdbusplus::xyz::openbmc_project::Common::Error::NotAllowed);
+    // process D-Bus calls
+    eventLoop(3);
 }
 
 TEST_F(AuthoritiesListTest, CertInWrongFormat)
@@ -1818,6 +1908,8 @@ TEST_F(AuthoritiesListTest, CertInWrongFormat)
                          "-----BEGIN CERTIFICATE-----");
     EXPECT_THROW(manager.installAll(sourceAuthoritiesListFile),
                  InvalidCertificate);
+    // process D-Bus calls
+    eventLoop(3);
 }
 
 TEST_F(AuthoritiesListTest, ReplaceAll)
@@ -1844,7 +1936,8 @@ TEST_F(AuthoritiesListTest, ReplaceAll)
     createAuthoritiesList(maxNumAuthorityCertificates);
     std::vector<sdbusplus::message::object_path> objects =
         manager.replaceAll(sourceAuthoritiesListFile);
-
+    // process D-Bus calls
+    eventLoop(3);
     for (size_t i = 0; i < manager.getCertificates().size(); ++i)
     {
         EXPECT_EQ(manager.getCertificates()[i]->getObjectPath(), objects[i]);
