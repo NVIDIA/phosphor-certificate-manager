@@ -223,7 +223,7 @@ class TestCertificates : public ::testing::Test
     std::string certificateFile, CSRFile, privateKeyFile, rsaPrivateKeyFilePath;
 
     std::string certDir;
-    uint64_t certId;
+    uint64_t certId = 1;
 };
 
 class MainApp
@@ -1093,7 +1093,7 @@ TEST_F(TestCertificates, TestGenerateCSR)
     bus.attach_event(event.get(), SD_EVENT_PRIORITY_NORMAL);
     Manager manager(bus, event, objPath.c_str(), type, std::move(unit),
                     std::move(installPath));
-    Status status;
+    Status status = Status::success;
     CSR csr(bus, objPath.c_str(), csrPath.c_str(), status);
     MainApp mainApp(&manager, &csr);
     mainApp.generateCSR(alternativeNames, challengePassword, city, commonName,
@@ -1101,7 +1101,7 @@ TEST_F(TestCertificates, TestGenerateCSR)
                         keyBitLength, keyCurveId, keyPairAlgorithm, keyUsage,
                         organization, organizationalUnit, state, surname,
                         unstructuredName);
-    std::string csrData("");
+    std::string csrData{};
     // generateCSR takes considerable time to create CSR and privateKey Files
     EXPECT_FALSE(fs::exists(csrPath));
     EXPECT_FALSE(fs::exists(privateKeyPath));
@@ -1348,7 +1348,7 @@ TEST_F(TestCertificates, TestECKeyGeneration)
     auto event = sdeventplus::Event::get_default();
     Manager manager(bus, event, objPath.c_str(), type, std::move(unit),
                     std::move(installPath));
-    Status status;
+    Status status = Status::success;
     CSR csr(bus, objPath.c_str(), csrPath.c_str(), status);
     MainApp mainApp(&manager, &csr);
     mainApp.generateCSR(alternativeNames, challengePassword, city, commonName,
