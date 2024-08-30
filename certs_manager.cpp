@@ -249,7 +249,7 @@ Manager::Manager(sdbusplus::bus_t& bus, sdeventplus::Event& event,
         else if (certType == CertificateType::securebootDatabase)
         {
             sigManager = std::make_unique<phosphor::certs::SigManager>(
-                bus, event, path, certType, installPath + "/signature");
+                bus, event, path, certType, certInstallPath + "/signature");
         }
     }
     catch (const std::exception& ex)
