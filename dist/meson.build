@@ -54,6 +54,18 @@ if not get_option('config-secureBootDatabase').disabled()
     endforeach
 endif
 
+if not get_option('config-profiles').disabled()
+    busconfig += 'busconfig/phosphor-authority-profile-config.conf'
+    databases = ['profileNvidia', 'profileOem', 'profileNoneDefault']
+    foreach database : databases
+        certs += 'env/' + database
+        systemd_alias += [[
+            '../phosphor-certificate-manager@.service',
+            'multi-user.target.wants/phosphor-certificate-manager@' + database + '.service'
+        ]]
+    endforeach
+endif
+
 install_data(
     service_files,
     install_dir: systemd_system_unit_dir,
