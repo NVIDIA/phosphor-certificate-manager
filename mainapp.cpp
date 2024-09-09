@@ -64,10 +64,10 @@ int main(int argc, char** argv)
     if (certificateType == phosphor::certs::CertificateType::securebootDatabase)
     {
         // Adjusting objPath for SecureBootDatabase
-        objPath =
-            "/xyz/openbmc_project/secureBootDatabase/" + arguments.endpoint;
+        objPath = "/xyz/openbmc_project/secureBootDatabase/" +
+                  arguments.endpoint;
     }
-    
+
     // Add sdbusplus ObjectManager
     sdbusplus::server::manager_t objManager(bus, objPath.c_str());
 

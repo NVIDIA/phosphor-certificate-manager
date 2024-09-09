@@ -14,8 +14,8 @@
 
 #include <filesystem>
 #include <functional>
-#include <optional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -342,7 +342,8 @@ class Certificate : public internal::CertificateInterface
     std::unique_ptr<internal::UefiSignatureOwnerIntf> ownerIntf;
 
     /** @brief Interface of UUID */
-    std::unique_ptr<sdbusplus::xyz::openbmc_project::Common::server::UUID> uuidIntf;
+    std::unique_ptr<sdbusplus::xyz::openbmc_project::Common::server::UUID>
+        uuidIntf;
 };
 
 } // namespace phosphor::certs

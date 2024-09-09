@@ -1947,4 +1947,3 @@ TEST_F(AuthoritiesListTest, ReplaceAll)
 
 } // namespace
 } // namespace phosphor::certs
-

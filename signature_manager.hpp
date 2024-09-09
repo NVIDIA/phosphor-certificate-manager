@@ -2,13 +2,14 @@
 
 #include "signature.hpp"
 
+#include <sdbusplus/server/object.hpp>
+#include <xyz/openbmc_project/BIOSConfig/SecureBootDatabase/AddSignature/server.hpp>
+
 #include <cstdint>
 #include <filesystem>
 #include <memory>
-#include <sdbusplus/server/object.hpp>
 #include <string>
 #include <vector>
-#include <xyz/openbmc_project/BIOSConfig/SecureBootDatabase/AddSignature/server.hpp>
 
 namespace phosphor::certs
 {

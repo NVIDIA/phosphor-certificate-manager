@@ -20,6 +20,7 @@
 #include <phosphor-logging/elog-errors.hpp>
 #include <phosphor-logging/elog.hpp>
 #include <phosphor-logging/lg2.hpp>
+#include <phosphor-logging/redfish_event_log.hpp>
 #include <sdbusplus/bus.hpp>
 #include <sdbusplus/exception.hpp>
 #include <sdbusplus/message.hpp>
@@ -39,7 +40,6 @@
 #include <exception>
 #include <fstream>
 #include <utility>
-#include <phosphor-logging/redfish_event_log.hpp>
 namespace phosphor::certs
 {
 namespace
@@ -217,7 +217,7 @@ Manager::Manager(sdbusplus::bus_t& bus, sdeventplus::Event& event,
                 }
             });
         }
-        else if ((certType == CertificateType::authority)||
+        else if ((certType == CertificateType::authority) ||
                  (certType == CertificateType::authorityBios))
         {
             try
@@ -283,8 +283,8 @@ std::string Manager::install(const std::string filePath)
         if (certType == CertificateType::securebootDatabase)
         {
             auto certificateId = allocId();
-            certObjectPath =
-                objectPath + "/certs/" + std::to_string(certificateId);
+            certObjectPath = objectPath + "/certs/" +
+                             std::to_string(certificateId);
             try
             {
                 installedCerts.emplace_back(std::make_unique<Certificate>(
@@ -293,8 +293,9 @@ std::string Manager::install(const std::string filePath)
             }
             catch (const std::exception& ex)
             {
-		lg2::error("Error in certificate constructor,ERROR_STR:{ERROR_STR}",
-                     "ERROR_STR", ex);
+                lg2::error(
+                    "Error in certificate constructor,ERROR_STR:{ERROR_STR}",
+                    "ERROR_STR", ex);
 
                 releaseId(certificateId);
             }
@@ -1058,7 +1059,7 @@ void Manager::createCertificates()
         if (!fs::is_directory(certInstallPath))
         {
             lg2::error("Certificate installation path exists and it is "
-                            "not a directory");
+                       "not a directory");
             elog<InternalFailure>();
             return;
         }
@@ -1078,19 +1079,21 @@ void Manager::createCertificates()
                     }
                     auto certificateId = std::stoull(path.path().filename());
                     allocId(certificateId);
-                    certObjectPath =
-                        objectPath + "/certs/" + std::to_string(certificateId);
+                    certObjectPath = objectPath + "/certs/" +
+                                     std::to_string(certificateId);
                     try
                     {
                         installedCerts.emplace_back(
                             std::make_unique<Certificate>(
                                 bus, certObjectPath, certType, certInstallPath,
-                                path.path(), certWatchPtr.get(), *this, /*restore=*/false));
+                                path.path(), certWatchPtr.get(), *this,
+                                /*restore=*/false));
                     }
                     catch (const std::exception& ex)
                     {
-			lg2::error("Error in certificate constructor,ERROR_STR:{ERROR_STR}",
-                             "ERROR_STR", ex);
+                        lg2::error(
+                            "Error in certificate constructor,ERROR_STR:{ERROR_STR}",
+                            "ERROR_STR", ex);
                         releaseId(certificateId);
                     }
                 }

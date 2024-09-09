@@ -2,6 +2,17 @@
 
 #include "signature_manager.hpp"
 
+#include <phosphor-logging/elog-errors.hpp>
+#include <phosphor-logging/elog.hpp>
+#include <phosphor-logging/log.hpp>
+#include <sdbusplus/bus.hpp>
+#include <sdbusplus/exception.hpp>
+#include <sdbusplus/message.hpp>
+#include <sdeventplus/source/base.hpp>
+#include <sdeventplus/source/child.hpp>
+#include <xyz/openbmc_project/Certs/error.hpp>
+#include <xyz/openbmc_project/Common/error.hpp>
+
 #include <algorithm>
 #include <array>
 #include <cerrno>
@@ -11,17 +22,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <exception>
-#include <phosphor-logging/elog-errors.hpp>
-#include <phosphor-logging/elog.hpp>
-#include <phosphor-logging/log.hpp>
-#include <sdbusplus/bus.hpp>
-#include <sdbusplus/exception.hpp>
-#include <sdbusplus/message.hpp>
-#include <sdeventplus/source/base.hpp>
-#include <sdeventplus/source/child.hpp>
 #include <utility>
-#include <xyz/openbmc_project/Certs/error.hpp>
-#include <xyz/openbmc_project/Common/error.hpp>
 
 namespace phosphor::certs
 {
@@ -104,8 +105,8 @@ std::string SigManager::add(const std::string sigString,
     if (isSignatureUnique(sigString))
     {
         auto signatureId = allocId();
-        sigObjectPath =
-            objectPath + "/signature/" + std::to_string(signatureId);
+        sigObjectPath = objectPath + "/signature/" +
+                        std::to_string(signatureId);
         try
         {
             installedSignatures.emplace_back(std::make_unique<Signature>(
@@ -141,11 +142,11 @@ void SigManager::deleteAll()
 
 void SigManager::deleteSignature(const Signature* const signature)
 {
-    std::vector<std::unique_ptr<Signature>>::iterator const& sigIt =
+    const std::vector<std::unique_ptr<Signature>>::iterator& sigIt =
         std::find_if(installedSignatures.begin(), installedSignatures.end(),
-                     [signature](std::unique_ptr<Signature> const& sig) {
-                         return (sig.get() == signature);
-                     });
+                     [signature](const std::unique_ptr<Signature>& sig) {
+        return (sig.get() == signature);
+    });
     if (sigIt != installedSignatures.end())
     {
         auto signatureId =
@@ -228,9 +229,9 @@ void SigManager::createSignatures()
 bool SigManager::isSignatureUnique(const std::string& sigString)
 {
     if (std::any_of(installedSignatures.begin(), installedSignatures.end(),
-                    [&sigString](std::unique_ptr<Signature> const& sig) {
-                        return sig->isSame(sigString);
-                    }))
+                    [&sigString](const std::unique_ptr<Signature>& sig) {
+        return sig->isSame(sigString);
+    }))
     {
         return false;
     }

@@ -3,17 +3,18 @@
 #include "certificate.hpp"
 #include "uefiSignatureOwnerIntf.hpp"
 
+#include <phosphor-logging/elog.hpp>
+#include <sdbusplus/server/object.hpp>
+#include <xyz/openbmc_project/BIOSConfig/SecureBootDatabase/Signature/server.hpp>
+#include <xyz/openbmc_project/Object/Delete/server.hpp>
+
 #include <filesystem>
 #include <functional>
 #include <memory>
 #include <optional>
-#include <phosphor-logging/elog.hpp>
-#include <sdbusplus/server/object.hpp>
 #include <string>
 #include <string_view>
 #include <unordered_map>
-#include <xyz/openbmc_project/BIOSConfig/SecureBootDatabase/Signature/server.hpp>
-#include <xyz/openbmc_project/Object/Delete/server.hpp>
 
 namespace phosphor::certs
 {

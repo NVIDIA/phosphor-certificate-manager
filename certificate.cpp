@@ -216,7 +216,7 @@ std::string
 std::string
     Certificate::generateCertFilePath(const std::string& certSrcFilePath)
 {
-    if ((certType == CertificateType::authority)||
+    if ((certType == CertificateType::authority) ||
         (certType == CertificateType::authorityBios))
     {
         return generateAuthCertFilePath(certSrcFilePath);
@@ -427,7 +427,7 @@ void Certificate::install(X509_STORE& x509Store, const std::string& pem,
         lg2::info("Certificate install, PEM_STR:{PEM_STR} ", "PEM_STR", pem);
     }
 
-    if ((certType != CertificateType::authority)&&
+    if ((certType != CertificateType::authority) &&
         (certType != CertificateType::authorityBios))
     {
         lg2::error("Bulk install error: Unsupported Type; only authority "
@@ -482,7 +482,7 @@ bool Certificate::isSame(const std::string& certPath)
 
 void Certificate::storageUpdate(std::optional<std::string> certSrcFilePath)
 {
-    if ((certType == CertificateType::authority)||
+    if ((certType == CertificateType::authority) ||
         (certType == CertificateType::authorityBios))
     {
         // Create symbolic link in the certificate directory

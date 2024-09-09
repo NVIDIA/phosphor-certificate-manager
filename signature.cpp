@@ -6,6 +6,12 @@
 
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/string.hpp>
+#include <phosphor-logging/elog-errors.hpp>
+#include <phosphor-logging/elog.hpp>
+#include <phosphor-logging/log.hpp>
+#include <xyz/openbmc_project/Certs/error.hpp>
+#include <xyz/openbmc_project/Common/error.hpp>
+
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -13,13 +19,8 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
-#include <phosphor-logging/elog-errors.hpp>
-#include <phosphor-logging/elog.hpp>
-#include <phosphor-logging/log.hpp>
 #include <utility>
 #include <vector>
-#include <xyz/openbmc_project/Certs/error.hpp>
-#include <xyz/openbmc_project/Common/error.hpp>
 
 // Register class version
 // From cereal documentation;
@@ -91,8 +92,8 @@ Signature::Signature(sdbusplus::bus::bus& bus, const std::string& objPath,
     manager(parent)
 {
     // Generate signature file path
-    signatureFilePath =
-        signatureInstallPath + "/" + fs::path(objectPath).filename().c_str();
+    signatureFilePath = signatureInstallPath + "/" +
+                        fs::path(objectPath).filename().c_str();
 
     loadFromFile();
 
