@@ -1,0 +1,12 @@
+#REST URI endpoint
+#example: /xyz/openbmc_project/certs/authority/profileNvidia
+ENDPOINT=profileNvidia
+
+#Path for the certificate file
+CERTPATH=/etc/profile-manager/authority/nvidia
+
+#Units to restart
+UNIT=""
+
+#Type of service
+TYPE=authority

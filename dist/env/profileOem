@@ -1,0 +1,12 @@
+#REST URI endpoint
+#example: /xyz/openbmc_project/certs/authority/profileOem
+ENDPOINT=profileOem
+
+#Path for the certificate file
+CERTPATH=/etc/profile-manager/authority/oem
+
+#Units to restart
+UNIT=""
+
+#Type of service
+TYPE=authority
