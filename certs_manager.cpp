@@ -132,9 +132,9 @@ std::vector<std::string> splitCertificates(const std::string& sourceFilePath)
 Manager::Manager(sdbusplus::bus_t& bus, sdeventplus::Event& event,
                  const char* path, CertificateType type,
                  const std::string& unit, const std::string& installPath) :
-    internal::ManagerInterface(bus, path),
-    bus(bus), event(event), objectPath(path), certType(type),
-    unitToRestart(std::move(unit)), certInstallPath(std::move(installPath)),
+    internal::ManagerInterface(bus, path), bus(bus), event(event),
+    objectPath(path), certType(type), unitToRestart(std::move(unit)),
+    certInstallPath(std::move(installPath)),
     certParentInstallPath(fs::path(certInstallPath).parent_path())
 {
     try
@@ -189,8 +189,8 @@ Manager::Manager(sdbusplus::bus_t& bus, sdeventplus::Event& event,
             certType == CertificateType::client)
         {
             // watch for certificate file create/replace
-            certWatchPtr = std::make_unique<Watch>(event, certInstallPath,
-                                                   [this]() {
+            certWatchPtr = std::make_unique<
+                Watch>(event, certInstallPath, [this]() {
                 try
                 {
                     // if certificate file existing update it
@@ -327,9 +327,9 @@ std::vector<sdbusplus::message::object_path>
     if ((certType != CertificateType::authority) &&
         (certType != CertificateType::authorityBios))
     {
-        elog<NotAllowed>(
-            NotAllowedReason("The InstallAll interface is only allowed for "
-                             "Authority certificates"));
+        elog<NotAllowed>(NotAllowedReason(
+            "The InstallAll interface is only allowed for "
+            "Authority certificates"));
     }
 
     if (!installedCerts.empty())
@@ -354,8 +354,8 @@ std::vector<sdbusplus::message::object_path>
     lg2::info("Starts authority list install");
 
     fs::path authorityStore(certInstallPath);
-    fs::path authoritiesListFile = authorityStore /
-                                   defaultAuthoritiesListFileName;
+    fs::path authoritiesListFile =
+        authorityStore / defaultAuthoritiesListFileName;
 
     // Atomically install all the certificates
     fs::path tempPath = Certificate::generateUniqueFilePath(authorityStore);
@@ -368,8 +368,8 @@ std::vector<sdbusplus::message::object_path>
     X509StorePtr x509Store = getX509Store(sourceFile);
     for (const auto& authority : authorities)
     {
-        std::string certObjectPath = objectPath + '/' +
-                                     std::to_string(tempCertIdCounter);
+        std::string certObjectPath =
+            objectPath + '/' + std::to_string(tempCertIdCounter);
         tempCertificates.emplace_back(std::make_unique<Certificate>(
             bus, certObjectPath, certType, tempPath, *x509Store, authority,
             certWatchPtr.get(), *this, /*restore=*/false));
@@ -392,8 +392,8 @@ std::vector<sdbusplus::message::object_path>
     for (const auto& cert : installedCerts)
     {
         cert->setCertInstallPath(certInstallPath);
-        cert->setCertFilePath(certInstallPath /
-                              fs::path(cert->getCertFilePath()).filename());
+        cert->setCertFilePath(
+            certInstallPath / fs::path(cert->getCertFilePath()).filename());
         cert->storageUpdate();
     }
     // Remove the temporary folder
@@ -431,8 +431,8 @@ void Manager::deleteAll()
     if ((certType == CertificateType::authority) ||
         (certType == CertificateType::authorityBios))
     {
-        if (fs::path authoritiesList = fs::path(certInstallPath) /
-                                       defaultAuthoritiesListFileName;
+        if (fs::path authoritiesList =
+                fs::path(certInstallPath) / defaultAuthoritiesListFileName;
             fs::exists(authoritiesList))
         {
             fs::remove(authoritiesList);
@@ -458,8 +458,8 @@ void Manager::deleteCertificate(const Certificate* const certificate)
     const std::vector<std::unique_ptr<Certificate>>::iterator& certIt =
         std::find_if(installedCerts.begin(), installedCerts.end(),
                      [certificate](const std::unique_ptr<Certificate>& cert) {
-        return (cert.get() == certificate);
-    });
+                         return (cert.get() == certificate);
+                     });
     if (certIt != installedCerts.end())
     {
         if (certType == CertificateType::securebootDatabase)
@@ -526,12 +526,12 @@ std::string Manager::generateCSR(
     {
         try
         {
-            generateCSRHelper(alternativeNames, challengePassword, city,
-                              commonName, contactPerson, country, email,
-                              givenName, initials, keyBitLength, keyCurveId,
-                              keyPairAlgorithm, keyUsage, organization,
-                              organizationalUnit, state, surname,
-                              unstructuredName);
+            generateCSRHelper(
+                alternativeNames, challengePassword, city, commonName,
+                contactPerson, country, email, givenName, initials,
+                keyBitLength, keyCurveId, keyPairAlgorithm, keyUsage,
+                organization, organizationalUnit, state, surname,
+                unstructuredName);
             exit(EXIT_SUCCESS);
         }
         catch (const InternalFailure& e)
@@ -552,18 +552,18 @@ std::string Manager::generateCSR(
     else
     {
         using namespace sdeventplus::source;
-        Child::Callback callback = [this](Child& eventSource,
-                                          const siginfo_t* si) {
-            eventSource.set_enabled(Enabled::On);
-            if (si->si_status != 0)
-            {
-                this->createCSRObject(Status::failure);
-            }
-            else
-            {
-                this->createCSRObject(Status::success);
-            }
-        };
+        Child::Callback callback =
+            [this](Child& eventSource, const siginfo_t* si) {
+                eventSource.set_enabled(Enabled::On);
+                if (si->si_status != 0)
+                {
+                    this->createCSRObject(Status::failure);
+                }
+                else
+                {
+                    this->createCSRObject(Status::success);
+                }
+            };
         try
         {
             sigset_t ss;
@@ -920,8 +920,8 @@ void Manager::writePrivateKey(const EVPPkeyPtr& pKey,
         lg2::error("Error occurred creating private key file");
         elog<InternalFailure>();
     }
-    int ret = PEM_write_PrivateKey(fp, pKey.get(), EVP_aes_256_cbc(), NULL, 0,
-                                   lsp::passwordCallback, NULL);
+    int ret =
+        PEM_write_PrivateKey(fp, pKey.get(), nullptr, nullptr, 0, 0, nullptr);
     std::fclose(fp);
     if (ret == 0)
     {
@@ -1011,8 +1011,8 @@ void Manager::createCertificates()
         }
 
         // If the authorities list exists, recover from it and return
-        if (fs::path authoritiesListFilePath = fs::path(certInstallPath) /
-                                               defaultAuthoritiesListFileName;
+        if (fs::path authoritiesListFilePath =
+                fs::path(certInstallPath) / defaultAuthoritiesListFileName;
             fs::exists(authoritiesListFilePath))
         {
             // remove all other files and directories
@@ -1135,8 +1135,8 @@ void Manager::createCertificates()
 
 void Manager::createRSAPrivateKeyFile()
 {
-    fs::path rsaPrivateKeyFileName = certParentInstallPath /
-                                     defaultRSAPrivateKeyFileName;
+    fs::path rsaPrivateKeyFileName =
+        certParentInstallPath / defaultRSAPrivateKeyFileName;
 
     try
     {
@@ -1165,8 +1165,8 @@ EVPPkeyPtr Manager::getRSAKeyPair(const int64_t keyBitLength)
             Argument::ARGUMENT_NAME("KEYBITLENGTH"),
             Argument::ARGUMENT_VALUE(std::to_string(keyBitLength).c_str()));
     }
-    fs::path rsaPrivateKeyFileName = certParentInstallPath /
-                                     defaultRSAPrivateKeyFileName;
+    fs::path rsaPrivateKeyFileName =
+        certParentInstallPath / defaultRSAPrivateKeyFileName;
 
     FILE* privateKeyFile = std::fopen(rsaPrivateKeyFileName.c_str(), "r");
     if (!privateKeyFile)
@@ -1256,8 +1256,8 @@ bool Manager::isCertificateUnique(const std::string& filePath,
     if (std::any_of(
             installedCerts.begin(), installedCerts.end(),
             [&filePath, certToDrop](const std::unique_ptr<Certificate>& cert) {
-        return cert.get() != certToDrop && cert->isSame(filePath);
-    }))
+                return cert.get() != certToDrop && cert->isSame(filePath);
+            }))
     {
         return false;
     }

@@ -122,27 +122,19 @@ void Certificate::copyCertificate(const std::string& certSrcFilePath,
     // copy it.
     if (certSrcFilePath != certFilePath)
     {
-        std::ifstream inputCertFileStream;
-        std::ofstream outputCertFileStream;
-        inputCertFileStream.exceptions(std::ifstream::failbit |
-                                       std::ifstream::badbit |
-                                       std::ifstream::eofbit);
-        outputCertFileStream.exceptions(std::ofstream::failbit |
-                                        std::ofstream::badbit |
-                                        std::ofstream::eofbit);
-        try
-        {
-            inputCertFileStream.open(certSrcFilePath);
-            outputCertFileStream.open(certFilePath, std::ios::out);
-            outputCertFileStream << inputCertFileStream.rdbuf() << std::flush;
-            inputCertFileStream.close();
-            outputCertFileStream.close();
-        }
-        catch (const std::exception& e)
+        // -p flag preserves the file metadata when copying
+        // -f flag forces the copy
+        const std::string command =
+            std::format("cp -fp {} {}", certSrcFilePath, certFilePath);
+        int statusCode = std::system(command.c_str());
+
+        // Non-zero `status_code` indicates something went wrong with issuing
+        // the copy command.
+        if (statusCode != 0)
         {
             lg2::error(
                 "Failed to copy certificate, ERR:{ERR}, SRC:{SRC}, DST:{DST}",
-                "ERR", e, "SRC", certSrcFilePath, "DST", certFilePath);
+                "ERR", statusCode, "SRC", certSrcFilePath, "DST", certFilePath);
             elog<InternalFailure>();
         }
     }
@@ -524,7 +516,7 @@ void Certificate::populateProperties(X509& cert)
     static const int maxKeySize = 4096;
     char subBuffer[maxKeySize] = {0};
     BIOMemPtr subBio(BIO_new(BIO_s_mem()), BIO_free);
-    // This pointer cannot be freed independantly.
+    // This pointer cannot be freed independently.
     X509_NAME* sub = X509_get_subject_name(&cert);
     X509_NAME_print_ex(subBio.get(), sub, 0, XN_FLAG_SEP_COMMA_PLUS);
     BIO_read(subBio.get(), subBuffer, maxKeySize);
@@ -532,7 +524,7 @@ void Certificate::populateProperties(X509& cert)
 
     char issuerBuffer[maxKeySize] = {0};
     BIOMemPtr issuerBio(BIO_new(BIO_s_mem()), BIO_free);
-    // This pointer cannot be freed independantly.
+    // This pointer cannot be freed independently.
     X509_NAME* issuerName = X509_get_issuer_name(&cert);
     X509_NAME_print_ex(issuerBio.get(), issuerName, 0, XN_FLAG_SEP_COMMA_PLUS);
     BIO_read(issuerBio.get(), issuerBuffer, maxKeySize);
@@ -617,12 +609,12 @@ void Certificate::checkAndAppendPrivateKey(const std::string& filePath)
 
         std::ifstream privKeyFileStream;
         std::ofstream certFileStream;
-        privKeyFileStream.exceptions(std::ifstream::failbit |
-                                     std::ifstream::badbit |
-                                     std::ifstream::eofbit);
-        certFileStream.exceptions(std::ofstream::failbit |
-                                  std::ofstream::badbit |
-                                  std::ofstream::eofbit);
+        privKeyFileStream.exceptions(
+            std::ifstream::failbit | std::ifstream::badbit |
+            std::ifstream::eofbit);
+        certFileStream.exceptions(
+            std::ofstream::failbit | std::ofstream::badbit |
+            std::ofstream::eofbit);
         try
         {
             privKeyFileStream.open(privateKeyFile);
