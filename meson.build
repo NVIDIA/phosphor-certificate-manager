@@ -61,7 +61,7 @@ config_data.set(
     description : 'Class version to register with Cereal.'
 )
 
-if not get_option('allow-expired').disabled()
+if get_option('allow-expired').allowed()
     config_data.set('allow_expired', 'true')
 else
     config_data.set('allow_expired', 'false')
@@ -110,13 +110,13 @@ executable(
     install: true,
 )
 
-if not get_option('ca-cert-extension').disabled()
+if get_option('ca-cert-extension').allowed()
     subdir('bmc-vmi-ca')
 endif
 
 subdir('dist')
 
-if not get_option('tests').disabled()
+if get_option('tests').allowed()
     subdir('test')
 endif
 
