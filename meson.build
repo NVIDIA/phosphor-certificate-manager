@@ -39,14 +39,16 @@ has_cereal = cpp.has_header_symbol(
     'cereal/cereal.hpp',
     'cereal::specialize',
     dependencies: cereal_dep,
-    required: false)
+    required: false,
+)
 if not has_cereal
     cereal_opts = import('cmake').subproject_options()
     cereal_opts.add_cmake_defines({'BUILD_TESTS': 'OFF'})
     cereal_proj = import('cmake').subproject(
         'cereal',
         options: cereal_opts,
-        required: false)
+        required: false,
+    )
     assert(cereal_proj.found(), 'cereal is required')
     cereal_dep = cereal_proj.dependency('cereal')
 endif
@@ -58,7 +60,7 @@ config_data.set('authorities_list_name', get_option('authorities-list-name'))
 config_data.set(
     'classVersion',
     1,
-    description : 'Class version to register with Cereal.'
+    description: 'Class version to register with Cereal.',
 )
 
 if get_option('allow-expired').allowed()

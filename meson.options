@@ -25,17 +25,20 @@ option(
     description: 'Install authority cert configs',
 )
 
-option('config-authorityBios',
+option(
+    'config-authorityBios',
     type: 'feature',
     description: 'Install authority bios cert configs',
 )
 
-option('config-secureBootDatabase',
+option(
+    'config-secureBootDatabase',
     type: 'feature',
     description: 'Install secure boot databse cert configs',
 )
 
-option('config-profiles',
+option(
+    'config-profiles',
     type: 'feature',
     description: 'Install profile cert configs',
 )
