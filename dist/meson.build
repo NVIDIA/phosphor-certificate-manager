@@ -1,12 +1,4 @@
-<<<<<<< HEAD
-systemd_system_unit_dir = systemd_dep.get_variable('systemdsystemunitdir')
-||||||| cbbec8d
-systemd_system_unit_dir = systemd_dep.get_variable(
-    'systemdsystemunitdir'
-)
-=======
 systemd_system_unit_dir = systemd_dep.get_variable('systemd_system_unit_dir')
->>>>>>> origin/master
 busconfig_dir = get_option('datadir') / 'dbus-1' / 'system.d'
 cert_manager_dir = get_option('datadir') / 'phosphor-certificate-manager'
 
@@ -42,7 +34,6 @@ if get_option('config-authority').allowed()
     ]
 endif
 
-<<<<<<< HEAD
 if not get_option('config-authorityBios').disabled()
     busconfig += 'busconfig/phosphor-authorityBios-cert-config.conf'
     certs += 'env/authorityBios'
@@ -94,14 +85,6 @@ if not get_option('config-profiles').disabled()
 endif
 
 install_data(service_files, install_dir: systemd_system_unit_dir)
-||||||| cbbec8d
-install_data(
-    service_files,
-    install_dir: systemd_system_unit_dir,
-)
-=======
-install_data(service_files, install_dir: systemd_system_unit_dir)
->>>>>>> origin/master
 
 install_data(busconfig, install_dir: busconfig_dir)
 
