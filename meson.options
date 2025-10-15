@@ -25,6 +25,7 @@ option(
     description: 'Install authority cert configs',
 )
 
+<<<<<<< HEAD
 option(
     'config-authorityBios',
     type: 'feature',
@@ -45,6 +46,12 @@ option(
 
 option(
     'authorities-list-name',
+||||||| cbbec8d
+option('authorities-list-name',
+=======
+option(
+    'authorities-list-name',
+>>>>>>> origin/master
     type: 'string',
     value: 'trust_bundle',
     description: 'File name of the authorities list',

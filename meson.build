@@ -33,6 +33,7 @@ endif
 systemd_dep = dependency('systemd')
 openssl_dep = dependency('openssl')
 
+<<<<<<< HEAD
 # Get Cereal dependency.
 cereal_dep = dependency('cereal', required: false)
 has_cereal = cpp.has_header_symbol(
@@ -62,6 +63,21 @@ config_data.set(
     1,
     description: 'Class version to register with Cereal.',
 )
+||||||| cbbec8d
+config_data = configuration_data()
+config_data.set(
+    'authority_limit',
+     get_option('authority-limit')
+)
+config_data.set(
+    'authorities_list_name',
+     get_option('authorities-list-name')
+)
+=======
+config_data = configuration_data()
+config_data.set('authority_limit', get_option('authority-limit'))
+config_data.set('authorities_list_name', get_option('authorities-list-name'))
+>>>>>>> origin/master
 
 if get_option('allow-expired').allowed()
     config_data.set('allow_expired', 'true')
