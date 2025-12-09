@@ -54,7 +54,7 @@ SigManager::SigManager(sdbusplus::bus::bus& bus, sdeventplus::Event& event,
                        const std::string& installPath) :
     internal::sigManagerInterface(bus, path),
     bus(bus), event(event), objectPath(path), certType(type),
-    sigInstallPath(std::move(installPath))
+    sigInstallPath(installPath)
 {
     try
     {

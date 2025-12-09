@@ -22,11 +22,14 @@
 
 #include <systemd/sd-event.h>
 
+#include <CLI/CLI.hpp>
 #include <sdbusplus/bus.hpp>
 #include <sdbusplus/server/manager.hpp>
 #include <sdeventplus/event.hpp>
 
 #include <cctype>
+#include <exception>
+#include <iostream>
 #include <string>
 #include <utility>
 
@@ -43,9 +46,17 @@ inline std::string capitalize(const std::string& s)
 int main(int argc, char** argv)
 {
     phosphor::certs::Arguments arguments;
-    if (phosphor::certs::processArguments(argc, argv, arguments) != 0)
+    try
     {
-        std::exit(EXIT_FAILURE);
+        if (phosphor::certs::processArguments(argc, argv, arguments) != 0)
+        {
+            std::exit(EXIT_FAILURE);
+        }
+    }
+    catch (const CLI::Error& e)
+    {
+        std::cerr << "CLI argument error: " << e.what() << std::endl;
+        return EXIT_FAILURE;
     }
 
     auto bus = sdbusplus::bus::new_default();
