@@ -601,7 +601,10 @@ void Certificate::checkAndAppendPrivateKey(const std::string& filePath)
         {
             lg2::error("Private key file is not found, FILE:{FILE}", "FILE",
                        privateKeyFile);
-            elog<InternalFailure>();
+            elog<InvalidCertificateError>(InvalidCertificate::REASON(
+                "Private key is missing from the "
+                "certificate string and no existing "
+                "private key was found"));
         }
 
         std::ifstream privKeyFileStream;

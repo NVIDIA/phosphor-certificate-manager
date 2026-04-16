@@ -971,12 +971,12 @@ TEST_F(TestInvalidCertificate, TestMissingPrivateKey)
                 MainApp mainApp(&manager);
                 mainApp.install(certificateFile);
             }
-            catch (const InternalFailure& e)
+            catch (const InvalidCertificate& e)
             {
                 throw;
             }
         },
-        InternalFailure);
+        InvalidCertificate);
     EXPECT_FALSE(fs::exists(verifyPath));
     // Process D-Bus calls
     eventLoop(3);
