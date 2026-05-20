@@ -283,8 +283,8 @@ std::string Manager::install(const std::string filePath)
         if (certType == CertificateType::securebootDatabase)
         {
             auto certificateId = allocId();
-            certObjectPath = objectPath + "/certs/" +
-                             std::to_string(certificateId);
+            certObjectPath =
+                objectPath + "/certs/" + std::to_string(certificateId);
             try
             {
                 installedCerts.emplace_back(std::make_unique<Certificate>(
@@ -512,6 +512,13 @@ std::string Manager::generateCSR(
     std::string organization, std::string organizationalUnit, std::string state,
     std::string surname, std::string unstructuredName)
 {
+    if (commonName.empty())
+    {
+        lg2::error("CommonName is required for CSR generation");
+        elog<InvalidArgument>(Argument::ARGUMENT_NAME("CommonName"),
+                              Argument::ARGUMENT_VALUE(""));
+    }
+
     // We support only one CSR.
     csrPtr.reset(nullptr);
     auto pid = fork();
@@ -1078,8 +1085,8 @@ void Manager::createCertificates()
                     }
                     auto certificateId = std::stoull(path.path().filename());
                     allocId(certificateId);
-                    certObjectPath = objectPath + "/certs/" +
-                                     std::to_string(certificateId);
+                    certObjectPath =
+                        objectPath + "/certs/" + std::to_string(certificateId);
                     try
                     {
                         installedCerts.emplace_back(
