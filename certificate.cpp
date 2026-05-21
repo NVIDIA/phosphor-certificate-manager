@@ -60,7 +60,7 @@ using BufMemPtr = std::unique_ptr<BUF_MEM, decltype(&::BUF_MEM_free)>;
 // Refer to
 // https://github.com/openssl/openssl/blob/master/include/openssl/x509v3.h for
 // key usage bit fields
-std::map<uint8_t, std::string> keyUsageToRfStr = {
+std::map<uint16_t, std::string> keyUsageToRfStr = {
     {KU_DIGITAL_SIGNATURE, "DigitalSignature"},
     {KU_NON_REPUDIATION, "NonRepudiation"},
     {KU_KEY_ENCIPHERMENT, "KeyEncipherment"},
@@ -74,7 +74,7 @@ std::map<uint8_t, std::string> keyUsageToRfStr = {
 // Refer to schema 2018.3
 // http://redfish.dmtf.org/schemas/v1/Certificate.json#/definitions/KeyUsage for
 // supported Extended KeyUsage types in redfish
-std::map<uint8_t, std::string> extendedKeyUsageToRfStr = {
+std::map<int, std::string> extendedKeyUsageToRfStr = {
     {NID_server_auth, "ServerAuthentication"},
     {NID_client_auth, "ClientAuthentication"},
     {NID_email_protect, "EmailProtection"},
@@ -558,28 +558,39 @@ void Certificate::populateProperties(X509& cert)
         X509_get_ext_d2i(&cert, NID_key_usage, nullptr, nullptr));
     if (usage != nullptr)
     {
-        for (auto i = 0; i < usage->length; ++i)
+        uint16_t bits = 0;
+        if (usage->length >= 1 && usage->data != nullptr)
         {
-            for (auto& x : keyUsageToRfStr)
+            bits = usage->data[0];
+            if (usage->length >= 2)
             {
-                if (x.first & usage->data[i])
-                {
-                    keyUsageList.push_back(x.second);
-                    break;
-                }
+                bits |= static_cast<uint16_t>(usage->data[1]) << 8;
             }
         }
+        for (auto& x : keyUsageToRfStr)
+        {
+            if (x.first & bits)
+            {
+                keyUsageList.push_back(x.second);
+            }
+        }
+        ASN1_BIT_STRING_free(usage);
     }
 
     EXTENDED_KEY_USAGE* extUsage = static_cast<EXTENDED_KEY_USAGE*>(
         X509_get_ext_d2i(&cert, NID_ext_key_usage, nullptr, nullptr));
-    if (extUsage == nullptr)
+    if (extUsage != nullptr)
     {
         for (int i = 0; i < sk_ASN1_OBJECT_num(extUsage); i++)
         {
-            keyUsageList.push_back(extendedKeyUsageToRfStr[OBJ_obj2nid(
-                sk_ASN1_OBJECT_value(extUsage, i))]);
+            auto it = extendedKeyUsageToRfStr.find(
+                OBJ_obj2nid(sk_ASN1_OBJECT_value(extUsage, i)));
+            if (it != extendedKeyUsageToRfStr.end())
+            {
+                keyUsageList.push_back(it->second);
+            }
         }
+        sk_ASN1_OBJECT_pop_free(extUsage, ASN1_OBJECT_free);
     }
     keyUsage(keyUsageList);
 
