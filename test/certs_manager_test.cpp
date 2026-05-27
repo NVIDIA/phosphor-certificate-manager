@@ -40,6 +40,7 @@ namespace
 {
 namespace fs = std::filesystem;
 using ::sdbusplus::xyz::openbmc_project::Certs::Error::InvalidCertificate;
+using ::sdbusplus::xyz::openbmc_project::Certs::Error::InvalidCommonName;
 using ::sdbusplus::xyz::openbmc_project::Common::Error::InternalFailure;
 using ::sdbusplus::xyz::openbmc_project::Common::Error::InvalidArgument;
 using ::testing::Eq;
@@ -1214,7 +1215,7 @@ TEST_F(TestCertificates, TestGenerateCSRwithUnsupportedKeyPairAlgorithm)
     EXPECT_FALSE(fs::exists(privateKeyPath));
 }
 
-/** @brief Check if InvalidArgument is thrown when CommonName is empty string.
+/** @brief Check if InvalidCommonName is thrown when CommonName is empty string.
  * An empty CommonName produces a malformed CSR that CAs will reject.
  */
 TEST_F(TestCertificates, TestGenerateCSRwithEmptyCommonName)
@@ -1257,7 +1258,7 @@ TEST_F(TestCertificates, TestGenerateCSRwithEmptyCommonName)
             contactPerson, country, email, givenName, initials, keyBitLength,
             keyCurveId, keyPairAlgorithm, keyUsage, organization,
             organizationalUnit, state, surname, unstructuredName),
-        InvalidArgument);
+        InvalidCommonName);
     EXPECT_FALSE(fs::exists(csrPath));
     EXPECT_FALSE(fs::exists(privateKeyPath));
 }
