@@ -324,7 +324,7 @@ std::string Manager::install(const std::string filePath)
     return certObjectPath;
 }
 
-std::vector<sdbusplus::message::object_path> Manager::installAll(
+std::vector<sdbusplus::object_path> Manager::installAll(
     const std::string filePath)
 {
     if ((certType != CertificateType::authority) &&
@@ -400,7 +400,7 @@ std::vector<sdbusplus::message::object_path> Manager::installAll(
     // Remove the temporary folder
     fs::remove_all(tempPath);
 
-    std::vector<sdbusplus::message::object_path> objects;
+    std::vector<sdbusplus::object_path> objects;
     for (const auto& certificate : installedCerts)
     {
         objects.emplace_back(certificate->getObjectPath());
@@ -411,7 +411,7 @@ std::vector<sdbusplus::message::object_path> Manager::installAll(
     return objects;
 }
 
-std::vector<sdbusplus::message::object_path> Manager::replaceAll(
+std::vector<sdbusplus::object_path> Manager::replaceAll(
     std::string filePath)
 {
     installedCerts.clear();

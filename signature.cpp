@@ -82,7 +82,7 @@ void load(Archive& archive, Signature& signature,
     signature.format(signature.convertSignatureFormatFromString(sigFormat));
 }
 
-Signature::Signature(sdbusplus::bus::bus& bus, const std::string& objPath,
+Signature::Signature(sdbusplus::bus_t& bus, const std::string& objPath,
                      CertificateType type, const std::string& installPath,
                      SigManager& parent, const std::string sigString,
                      const SignatureFormat sigFormat) :

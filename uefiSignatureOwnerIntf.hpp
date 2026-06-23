@@ -50,7 +50,7 @@ class UefiSignatureOwnerIntf : public UUID
      *  @param[in] objPath - Object path to attach to
      *  @param[in] filePath - Path of the UefiSignatureOwner to store
      */
-    UefiSignatureOwnerIntf(sdbusplus::bus::bus& bus, const std::string& objPath,
+    UefiSignatureOwnerIntf(sdbusplus::bus_t& bus, const std::string& objPath,
                            const std::string& filePath);
 
     std::string uuid(std::string value) override;

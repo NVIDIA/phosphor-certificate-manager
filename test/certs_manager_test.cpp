@@ -1730,7 +1730,7 @@ TEST_F(AuthoritiesListTest, InstallAll)
         .WillOnce(Return());
     ASSERT_TRUE(manager.getCertificates().empty());
 
-    std::vector<sdbusplus::message::object_path> objects =
+    std::vector<sdbusplus::object_path> objects =
         manager.installAll(sourceAuthoritiesListFile);
     for (size_t i = 0; i < manager.getCertificates().size(); ++i)
     {
@@ -1971,7 +1971,7 @@ TEST_F(AuthoritiesListTest, ReplaceAll)
     // Replace the current list with a different list
     fs::remove_all(sourceAuthoritiesListFile.parent_path());
     createAuthoritiesList(maxNumAuthorityCertificates);
-    std::vector<sdbusplus::message::object_path> objects =
+    std::vector<sdbusplus::object_path> objects =
         manager.replaceAll(sourceAuthoritiesListFile);
     // process D-Bus calls
     eventLoop(3);

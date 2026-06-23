@@ -48,7 +48,7 @@ class SigManager : public internal::sigManagerInterface
      *  @param[in] type - Type of the signature.
      *  @param[in] installPath - Signature installation path.
      */
-    SigManager(sdbusplus::bus::bus& bus, sdeventplus::Event& event,
+    SigManager(sdbusplus::bus_t& bus, sdeventplus::Event& event,
                const char* path, CertificateType type,
                const std::string& installPath);
 
@@ -104,7 +104,7 @@ class SigManager : public internal::sigManagerInterface
     void releaseId(uint64_t id);
 
     /** @brief sdbusplus handler */
-    sdbusplus::bus::bus& bus;
+    sdbusplus::bus_t& bus;
 
     // sdevent Event handle
     [[maybe_unused]] sdeventplus::Event& event;

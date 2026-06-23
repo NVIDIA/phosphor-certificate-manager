@@ -57,7 +57,7 @@ UefiSignatureOwnerIntf::~UefiSignatureOwnerIntf()
     }
 }
 
-UefiSignatureOwnerIntf::UefiSignatureOwnerIntf(sdbusplus::bus::bus& bus,
+UefiSignatureOwnerIntf::UefiSignatureOwnerIntf(sdbusplus::bus_t& bus,
                                                const std::string& objPath,
                                                const std::string& filePath) :
     UUID(bus, objPath.c_str()),

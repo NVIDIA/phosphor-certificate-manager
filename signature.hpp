@@ -53,7 +53,7 @@ class Signature : public SignatureInterface
      *  @param[in] sigString - SignatrueString value
      *  @param[in] sigFormat - Formate enum of signature
      */
-    Signature(sdbusplus::bus::bus& bus, const std::string& objPath,
+    Signature(sdbusplus::bus_t& bus, const std::string& objPath,
               CertificateType type, const std::string& installPath,
               SigManager& parent, const std::string sigString = "",
               const SignatureFormat sigFormat = SignatureFormat::Unspecified);

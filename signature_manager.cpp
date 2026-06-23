@@ -49,7 +49,7 @@ using Argument =
 
 } // namespace
 
-SigManager::SigManager(sdbusplus::bus::bus& bus, sdeventplus::Event& event,
+SigManager::SigManager(sdbusplus::bus_t& bus, sdeventplus::Event& event,
                        const char* path, CertificateType type,
                        const std::string& installPath) :
     internal::sigManagerInterface(bus, path),
