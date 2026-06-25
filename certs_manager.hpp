@@ -305,6 +305,13 @@ class Manager : public internal::ManagerInterface
     bool isCertificateUnique(const std::string& certFilePath,
                              const Certificate* const certToDrop = nullptr);
 
+    /** @brief Throws InvalidCertificate if the PEM at filePath contains more
+     *  than one certificate block.  Only enforced for authority and
+     *  authorityBios types; no-op for all other types.
+     *  @param[in] filePath - Path to the PEM file to validate.
+     */
+    void rejectMultiCertBundle(const std::string& filePath);
+
     /** @brief Allocate a certificate ID.
      *  @param[in] id - The designated ID to allocated. 0 if no designated.
      *  @return Allocated certificate ID.
