@@ -285,8 +285,6 @@ std::string Manager::install(const std::string filePath)
         elog<CertificateLimitReached>();
     }
 
-    rejectMultiCertBundle(filePath);
-
     std::string certObjectPath;
     if (isCertificateUnique(filePath))
     {
@@ -499,8 +497,6 @@ void Manager::deleteCertificate(const Certificate* const certificate)
 void Manager::replaceCertificate(Certificate* const certificate,
                                  const std::string& filePath)
 {
-    rejectMultiCertBundle(filePath);
-
     if (isCertificateUnique(filePath, certificate))
     {
         certificate->install(filePath, false);
@@ -1285,24 +1281,6 @@ bool Manager::isCertificateUnique(const std::string& filePath,
     else
     {
         return true;
-    }
-}
-
-void Manager::rejectMultiCertBundle(const std::string& filePath)
-{
-    if ((certType == CertificateType::authority) ||
-        (certType == CertificateType::authorityBios))
-    {
-        std::vector<std::string> certs = splitCertificates(filePath);
-        if (certs.size() != 1)
-        {
-            lg2::error(
-                "Multi-certificate PEM rejected, count:{COUNT}, path:{PATH}",
-                "COUNT", certs.size(), "PATH", filePath);
-            elog<InvalidCertificate>(InvalidCertificateReason(
-                "PEM contains multiple certificates; use InstallAll or "
-                "ReplaceAll to install a bundle"));
-        }
     }
 }
 
