@@ -104,8 +104,10 @@ void Watch::stopWatch()
         if (-1 != wd)
         {
             inotify_rm_watch(fd, wd);
+            wd = -1;
         }
         close(fd);
+        fd = -1;
     }
     if (ioPtr)
     {
