@@ -306,6 +306,7 @@ std::string Manager::install(const std::string filePath)
                     "ERROR_STR", ex);
 
                 releaseId(certificateId);
+                throw;
             }
         }
         else
