@@ -419,8 +419,7 @@ std::vector<sdbusplus::object_path> Manager::installAll(
     return objects;
 }
 
-std::vector<sdbusplus::object_path> Manager::replaceAll(
-    std::string filePath)
+std::vector<sdbusplus::object_path> Manager::replaceAll(std::string filePath)
 {
     installedCerts.clear();
     certIdCounter = 1;
