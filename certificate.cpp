@@ -620,10 +620,7 @@ void Certificate::checkAndAppendPrivateKey(const std::string& filePath)
                    filePath);
         elog<InternalFailure>();
     }
-    // Must check: BIO_s_file() without a successful BIO_read_filename leaves
-    // an unbound FILE*. PEM_read_bio_PrivateKey then hits BIO_tell → ftell(NULL)
-    // and SIGSEGV. That is distinct from "!priKey" below (PEM opened OK but
-    // contains no private key — we then append .rsaprivkey.pem).
+
     if (BIO_read_filename(keyBio.get(), filePath.c_str()) <= 0)
     {
         lg2::error(
@@ -719,8 +716,7 @@ bool Certificate::compareKeys(const std::string& filePath)
                    filePath);
         elog<InternalFailure>();
     }
-    // Same as checkAndAppendPrivateKey: unchecked BIO_read_filename failure
-    // leads to PEM_read_bio_PrivateKey → ftell(NULL) → SIGSEGV.
+
     if (BIO_read_filename(keyBio.get(), filePath.c_str()) <= 0)
     {
         lg2::error(
