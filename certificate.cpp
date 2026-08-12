@@ -620,7 +620,14 @@ void Certificate::checkAndAppendPrivateKey(const std::string& filePath)
                    filePath);
         elog<InternalFailure>();
     }
-    BIO_read_filename(keyBio.get(), filePath.c_str());
+
+    if (BIO_read_filename(keyBio.get(), filePath.c_str()) <= 0)
+    {
+        lg2::error(
+            "Error occurred during BIO_read_filename call, FILE:{FILE}", "FILE",
+            filePath);
+        elog<InternalFailure>();
+    }
 
     EVPPkeyPtr priKey(PEM_read_bio_PrivateKey(keyBio.get(), nullptr,
                                               lsp::passwordCallback, nullptr),
@@ -709,7 +716,14 @@ bool Certificate::compareKeys(const std::string& filePath)
                    filePath);
         elog<InternalFailure>();
     }
-    BIO_read_filename(keyBio.get(), filePath.c_str());
+
+    if (BIO_read_filename(keyBio.get(), filePath.c_str()) <= 0)
+    {
+        lg2::error(
+            "Error occurred during BIO_read_filename call, FILE:{FILE}", "FILE",
+            filePath);
+        elog<InternalFailure>();
+    }
 
     EVPPkeyPtr priKey(PEM_read_bio_PrivateKey(keyBio.get(), nullptr,
                                               lsp::passwordCallback, nullptr),
