@@ -1068,8 +1068,6 @@ TEST_F(TestInvalidCertificate, TestMissingPrivateKey)
     std::string verifyUnit(ManagerInTest::unitToRestartInTest);
     auto objPath = std::string(objectNamePrefix) + '/' +
                    certificateTypeToString(type) + '/' + endpoint;
-    using NotAllowed =
-        sdbusplus::xyz::openbmc_project::Common::Error::NotAllowed;
     EXPECT_THROW(
         {
             try
