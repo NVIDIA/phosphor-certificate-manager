@@ -305,6 +305,16 @@ class Manager : public internal::ManagerInterface
     bool isCertificateUnique(const std::string& certFilePath,
                              const Certificate* const certToDrop = nullptr);
 
+    /** @brief Install every certificate of a multi-certificate PEM bundle
+     *  as its own Certificate object, so each one gets its own
+     *  subject-hash symlink in the authority store. All-or-nothing: if any
+     *  certificate fails to install, the ones already added are rolled back.
+     *  @param[in] authorities - Individual PEM encoded certificates.
+     *  @return Object path of the first installed certificate.
+     */
+    std::string installAuthorityBundle(
+        const std::vector<std::string>& authorities);
+
     /** @brief Allocate a certificate ID.
      *  @param[in] id - The designated ID to allocated. 0 if no designated.
      *  @return Allocated certificate ID.

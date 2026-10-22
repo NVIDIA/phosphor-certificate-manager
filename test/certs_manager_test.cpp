@@ -1741,6 +1741,43 @@ TEST_F(AuthoritiesListTest, InstallAll)
     eventLoop(5);
 }
 
+// Tests that Install of a multi-certificate bundle creates one Certificate and
+// one subject-hash symlink per certificate, so every CA in the bundle is
+// found by OpenSSL right after the install.
+TEST_F(AuthoritiesListTest, InstallBundleCreatesSymlinkPerCert)
+{
+    std::string endpoint("truststore");
+    std::string verifyUnit(ManagerInTest::unitToRestartInTest);
+    CertificateType type = CertificateType::authority;
+
+    std::string object = std::string(objectNamePrefix) + '/' +
+                         certificateTypeToString(type) + '/' + endpoint;
+    auto event = sdeventplus::Event::get_default();
+    bus.attach_event(event.get(), SD_EVENT_PRIORITY_NORMAL);
+    ManagerInTest manager(bus, event, object.c_str(), type, verifyUnit,
+                          authoritiesListFolder);
+    EXPECT_CALL(manager, reloadOrReset(Eq(ManagerInTest::unitToRestartInTest)))
+        .WillOnce(Return());
+    ASSERT_TRUE(manager.getCertificates().empty());
+
+    std::string firstObject = manager.install(sourceAuthoritiesListFile);
+
+    auto& certs = manager.getCertificates();
+    ASSERT_EQ(certs.size(), maxNumAuthorityCertificates);
+    EXPECT_EQ(certs[0]->getObjectPath(), firstObject);
+    for (size_t i = 0; i < certs.size(); ++i)
+    {
+        std::string name = "root_" + std::to_string(i);
+        EXPECT_EQ(certs[i]->subject(), "O=openbmc-project.xyz,CN=" + name);
+        std::string symbolLink =
+            authoritiesListFolder / (certs[i]->getCertId().substr(0, 8) + ".0");
+        ASSERT_TRUE(fs::exists(symbolLink));
+        compareFileAgainstString(symbolLink, certs[i]->certificateString());
+    }
+    // process D-Bus calls
+    eventLoop(5);
+}
+
 // Tests that the Authority Manager recovers from the authorities list persisted
 // in the installation path at boot up
 TEST_F(AuthoritiesListTest, RecoverAtBootUp)

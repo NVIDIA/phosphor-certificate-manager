@@ -285,6 +285,18 @@ std::string Manager::install(const std::string filePath)
         elog<CertificateLimitReached>();
     }
 
+    if ((certType == CertificateType::authority) ||
+        (certType == CertificateType::authorityBios))
+    {
+        // A bundle needs one Certificate (and one subject-hash symlink) per
+        // certificate, otherwise only the first one is found by OpenSSL.
+        std::vector<std::string> authorities = splitCertificates(filePath);
+        if (authorities.size() > 1)
+        {
+            return installAuthorityBundle(authorities);
+        }
+    }
+
     std::string certObjectPath;
     if (isCertificateUnique(filePath))
     {
@@ -330,7 +342,86 @@ std::string Manager::install(const std::string filePath)
     return certObjectPath;
 }
 
+<<<<<<< HEAD
 std::vector<sdbusplus::message::object_path> Manager::installAll(
+||||||| constructed merge base
+std::vector<sdbusplus::object_path> Manager::installAll(
+=======
+std::string Manager::installAuthorityBundle(
+    const std::vector<std::string>& authorities)
+{
+    if (installedCerts.size() + authorities.size() >
+        maxNumAuthorityCertificates)
+    {
+        lg2::error(
+            "Certificate limit reached, installed:{INSTALLED}, bundle:{BUNDLE}, max:{MAX}",
+            "INSTALLED", installedCerts.size(), "BUNDLE", authorities.size(),
+            "MAX", maxNumAuthorityCertificates);
+        elog<CertificateLimitReached>();
+    }
+
+    const size_t originalCount = installedCerts.size();
+    const uint64_t originalIdCounter = certIdCounter;
+    fs::path tempPath = Certificate::generateUniqueFilePath(certInstallPath);
+    fs::create_directory(tempPath);
+
+    std::vector<std::string> certObjectPaths;
+    try
+    {
+        for (size_t i = 0; i < authorities.size(); ++i)
+        {
+            fs::path certFile = tempPath / (std::to_string(i) + ".pem");
+            {
+                std::ofstream out(certFile, std::ios::binary);
+                out << authorities[i] << '\n';
+                if (!out)
+                {
+                    lg2::error("Failed to write bundle member, FILE:{FILE}",
+                               "FILE", certFile.string());
+                    elog<InternalFailure>();
+                }
+            }
+            if (!isCertificateUnique(certFile.string()))
+            {
+                elog<NotAllowed>(
+                    NotAllowedReason("Certificate already exist"));
+            }
+            std::string certObjectPath =
+                objectPath + '/' + std::to_string(certIdCounter);
+            certIdCounter++;
+            installedCerts.emplace_back(std::make_unique<Certificate>(
+                bus, certObjectPath, certType, certInstallPath,
+                certFile.string(), certWatchPtr.get(), *this,
+                /*restore=*/false));
+            certObjectPaths.emplace_back(std::move(certObjectPath));
+        }
+    }
+    catch (...)
+    {
+        installedCerts.erase(installedCerts.begin() + originalCount,
+                             installedCerts.end());
+        certIdCounter = originalIdCounter;
+        storageUpdate();
+        std::error_code ec;
+        fs::remove_all(tempPath, ec);
+        throw;
+    }
+
+    std::error_code ec;
+    fs::remove_all(tempPath, ec);
+
+    reloadOrReset(unitToRestart);
+    using namespace phosphor::logging;
+    for (const auto& certObjectPath : certObjectPaths)
+    {
+        sendEvent(MESSAGE_TYPE::RESOURCE_CREATED, Entry::Level::Informational,
+                  std::vector<std::string>{}, certObjectPath);
+    }
+    return certObjectPaths.front();
+}
+
+std::vector<sdbusplus::object_path> Manager::installAll(
+>>>>>>> certs_manager: install each CA of a bundle as its own certificate
     const std::string filePath)
 {
     if ((certType != CertificateType::authority) &&
