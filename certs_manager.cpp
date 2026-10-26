@@ -75,7 +75,7 @@ constexpr int defaultKeyBitLength = 3072;
 // secp224r1 is equal to RSA 2048 KeyBitLength. Refer RFC 5349
 constexpr auto defaultKeyCurveID = "secp224r1";
 // A single PEM certificate is a few KB; anything this large is not one.
-constexpr std::uintmax_t maxReplaceFileSize = 1024 * 1024;
+constexpr std::size_t maxReplaceFileSize = 1024 * 1024;
 // PEM certificate block markers, defined in go/rfc/7468.
 constexpr std::string_view beginCertificate = "-----BEGIN CERTIFICATE-----";
 constexpr std::string_view endCertificate = "-----END CERTIFICATE-----";
@@ -607,8 +607,7 @@ void Manager::replaceCertificate(Certificate* const certificate,
         auto fileSize = fs::file_size(filePath, sizeError);
         if (!sizeError && fileSize > maxReplaceFileSize)
         {
-            lg2::error("Replacement file is too large, SIZE:{SIZE}", "SIZE",
-                       fileSize);
+            lg2::error("Replacement file is too large", "SIZE", fileSize);
             elog<InvalidCertificate>(InvalidCertificateReason(
                 "Replace accepts a single certificate; file is too large"));
         }
