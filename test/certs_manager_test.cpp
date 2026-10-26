@@ -1778,6 +1778,94 @@ TEST_F(AuthoritiesListTest, InstallBundleCreatesSymlinkPerCert)
     eventLoop(5);
 }
 
+// Tests that a bundle which does not fit in the remaining room is rejected
+// as a whole and leaves the installed certificates untouched
+TEST_F(AuthoritiesListTest, InstallBundleLimitReached)
+{
+    std::string endpoint("truststore");
+    std::string verifyUnit(ManagerInTest::unitToRestartInTest);
+    CertificateType type = CertificateType::authority;
+
+    std::string object = std::string(objectNamePrefix) + '/' +
+                         certificateTypeToString(type) + '/' + endpoint;
+    auto event = sdeventplus::Event::get_default();
+    bus.attach_event(event.get(), SD_EVENT_PRIORITY_NORMAL);
+    ManagerInTest manager(bus, event, object.c_str(), type, verifyUnit,
+                          authoritiesListFolder);
+    EXPECT_CALL(manager, reloadOrReset(Eq(ManagerInTest::unitToRestartInTest)))
+        .WillOnce(Return());
+
+    manager.install(sourceAuthoritiesListFile.parent_path() / "root_1_cert");
+    ASSERT_EQ(manager.getCertificates().size(), 1);
+
+    using CertificateLimitReached =
+        sdbusplus::xyz::openbmc_project::Certs::Error::CertificateLimitReached;
+    EXPECT_THROW(manager.install(sourceAuthoritiesListFile),
+                 CertificateLimitReached);
+    EXPECT_EQ(manager.getCertificates().size(), 1);
+    eventLoop(5);
+}
+
+// Tests that a bundle repeating a certificate is rejected and the
+// certificates added before the failure are rolled back
+TEST_F(AuthoritiesListTest, InstallBundleDuplicateRollsBack)
+{
+    std::string endpoint("truststore");
+    std::string verifyUnit(ManagerInTest::unitToRestartInTest);
+    CertificateType type = CertificateType::authority;
+
+    std::string object = std::string(objectNamePrefix) + '/' +
+                         certificateTypeToString(type) + '/' + endpoint;
+    auto event = sdeventplus::Event::get_default();
+    bus.attach_event(event.get(), SD_EVENT_PRIORITY_NORMAL);
+    ManagerInTest manager(bus, event, object.c_str(), type, verifyUnit,
+                          authoritiesListFolder);
+    EXPECT_CALL(manager, reloadOrReset(Eq(ManagerInTest::unitToRestartInTest)))
+        .Times(0);
+
+    fs::path root1 = sourceAuthoritiesListFile.parent_path() / "root_1_cert";
+    fs::path dupBundle = sourceAuthoritiesListFile.parent_path() / "dup_bundle";
+    appendContentFromFile(dupBundle, root1);
+    appendContentFromFile(dupBundle, root1);
+
+    using NotAllowed =
+        sdbusplus::xyz::openbmc_project::Common::Error::NotAllowed;
+    EXPECT_THROW(manager.install(dupBundle), NotAllowed);
+    EXPECT_TRUE(manager.getCertificates().empty());
+    eventLoop(3);
+}
+
+// Tests that Replace of a single certificate with a bundle is rejected and
+// the original certificate is kept
+TEST_F(AuthoritiesListTest, ReplaceWithBundleRejected)
+{
+    std::string endpoint("truststore");
+    std::string verifyUnit(ManagerInTest::unitToRestartInTest);
+    CertificateType type = CertificateType::authority;
+
+    std::string object = std::string(objectNamePrefix) + '/' +
+                         certificateTypeToString(type) + '/' + endpoint;
+    auto event = sdeventplus::Event::get_default();
+    bus.attach_event(event.get(), SD_EVENT_PRIORITY_NORMAL);
+    ManagerInTest manager(bus, event, object.c_str(), type, verifyUnit,
+                          authoritiesListFolder);
+    EXPECT_CALL(manager, reloadOrReset(Eq(ManagerInTest::unitToRestartInTest)))
+        .WillOnce(Return());
+
+    manager.install(sourceAuthoritiesListFile.parent_path() / "root_1_cert");
+    auto& certs = manager.getCertificates();
+    ASSERT_EQ(certs.size(), 1);
+    std::string original = certs[0]->certificateString();
+
+    using InvalidCertificateError =
+        sdbusplus::xyz::openbmc_project::Certs::Error::InvalidCertificate;
+    EXPECT_THROW(certs[0]->replace(sourceAuthoritiesListFile),
+                 InvalidCertificateError);
+    ASSERT_EQ(certs.size(), 1);
+    EXPECT_EQ(certs[0]->certificateString(), original);
+    eventLoop(3);
+}
+
 // Tests that the Authority Manager recovers from the authorities list persisted
 // in the installation path at boot up
 TEST_F(AuthoritiesListTest, RecoverAtBootUp)

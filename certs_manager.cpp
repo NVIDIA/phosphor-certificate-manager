@@ -397,13 +397,25 @@ std::string Manager::installAuthorityBundle(
                              installedCerts.end());
         certIdCounter = originalIdCounter;
         storageUpdate();
-        std::error_code ec;
-        fs::remove_all(tempPath, ec);
+        std::error_code cleanupError;
+        fs::remove_all(tempPath, cleanupError);
+        if (cleanupError)
+        {
+            lg2::error(
+                "Failed to remove temporary bundle directory, DIR:{DIR}, ERR:{ERR}",
+                "DIR", tempPath.string(), "ERR", cleanupError.message());
+        }
         throw;
     }
 
-    std::error_code ec;
-    fs::remove_all(tempPath, ec);
+    std::error_code cleanupError;
+    fs::remove_all(tempPath, cleanupError);
+    if (cleanupError)
+    {
+        lg2::error(
+            "Failed to remove temporary bundle directory, DIR:{DIR}, ERR:{ERR}",
+            "DIR", tempPath.string(), "ERR", cleanupError.message());
+    }
 
     reloadOrReset(unitToRestart);
     using namespace phosphor::logging;
@@ -583,6 +595,20 @@ void Manager::deleteCertificate(const Certificate* const certificate)
 void Manager::replaceCertificate(Certificate* const certificate,
                                  const std::string& filePath)
 {
+    if ((certType == CertificateType::authority) ||
+        (certType == CertificateType::authorityBios))
+    {
+        // One object can hold one certificate; a bundle would leave the
+        // extra CAs without an object or a subject-hash symlink.
+        if (splitCertificates(filePath).size() > 1)
+        {
+            lg2::error("Replacing a certificate with a bundle is not allowed");
+            elog<InvalidCertificate>(InvalidCertificateReason(
+                "Replace accepts a single certificate; use ReplaceAll or "
+                "install the bundle"));
+        }
+    }
+
     if (isCertificateUnique(filePath, certificate))
     {
         certificate->install(filePath, false);
