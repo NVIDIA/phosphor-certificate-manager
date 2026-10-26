@@ -1973,6 +1973,45 @@ TEST_F(AuthoritiesListTest, ReplaceWithBundleRejected)
     eventLoop(3);
 }
 
+// Tests that Replace with a file over the size cap is rejected and the
+// original certificate is kept
+TEST_F(AuthoritiesListTest, ReplaceWithOversizedFileRejected)
+{
+    std::string endpoint("truststore");
+    std::string verifyUnit(ManagerInTest::unitToRestartInTest);
+    CertificateType type = CertificateType::authority;
+
+    std::string object = std::string(objectNamePrefix) + '/' +
+                         certificateTypeToString(type) + '/' + endpoint;
+    auto event = sdeventplus::Event::get_default();
+    bus.attach_event(event.get(), SD_EVENT_PRIORITY_NORMAL);
+    ManagerInTest manager(bus, event, object.c_str(), type, verifyUnit,
+                          authoritiesListFolder);
+    EXPECT_CALL(manager, reloadOrReset(Eq(ManagerInTest::unitToRestartInTest)))
+        .WillOnce(Return());
+
+    fs::path root1 = sourceAuthoritiesListFile.parent_path() / "root_1_cert";
+    manager.install(root1);
+    auto& certs = manager.getCertificates();
+    ASSERT_EQ(certs.size(), 1);
+    std::string original = certs[0]->certificateString();
+
+    // A single certificate followed by more than 1 MiB of padding
+    fs::path oversized = sourceAuthoritiesListFile.parent_path() / "oversized";
+    appendContentFromFile(oversized, root1);
+    {
+        std::ofstream out(oversized, std::ios::app);
+        out << std::string(1024 * 1024 + 1, '\n');
+    }
+
+    using InvalidCertificateError =
+        sdbusplus::xyz::openbmc_project::Certs::Error::InvalidCertificate;
+    EXPECT_THROW(certs[0]->replace(oversized), InvalidCertificateError);
+    ASSERT_EQ(certs.size(), 1);
+    EXPECT_EQ(certs[0]->certificateString(), original);
+    eventLoop(3);
+}
+
 // Tests that the Authority Manager recovers from the authorities list persisted
 // in the installation path at boot up
 TEST_F(AuthoritiesListTest, RecoverAtBootUp)
