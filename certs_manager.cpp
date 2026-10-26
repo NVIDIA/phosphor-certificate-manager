@@ -342,11 +342,6 @@ std::string Manager::install(const std::string filePath)
     return certObjectPath;
 }
 
-<<<<<<< HEAD
-std::vector<sdbusplus::message::object_path> Manager::installAll(
-||||||| constructed merge base
-std::vector<sdbusplus::object_path> Manager::installAll(
-=======
 std::string Manager::installAuthorityBundle(
     const std::vector<std::string>& authorities)
 {
@@ -420,8 +415,7 @@ std::string Manager::installAuthorityBundle(
     return certObjectPaths.front();
 }
 
-std::vector<sdbusplus::object_path> Manager::installAll(
->>>>>>> certs_manager: install each CA of a bundle as its own certificate
+std::vector<sdbusplus::message::object_path> Manager::installAll(
     const std::string filePath)
 {
     if ((certType != CertificateType::authority) &&
