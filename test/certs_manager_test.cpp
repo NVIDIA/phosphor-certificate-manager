@@ -2012,6 +2012,99 @@ TEST_F(AuthoritiesListTest, ReplaceWithOversizedFileRejected)
     eventLoop(3);
 }
 
+// Tests that deleting one certificate of an installed bundle leaves the others
+// installed and trusted
+TEST_F(AuthoritiesListTest, InstallBundleDeleteOne)
+{
+    std::string endpoint("truststore");
+    std::string verifyUnit(ManagerInTest::unitToRestartInTest);
+    CertificateType type = CertificateType::authority;
+
+    std::string object = std::string(objectNamePrefix) + '/' +
+                         certificateTypeToString(type) + '/' + endpoint;
+    auto event = sdeventplus::Event::get_default();
+    bus.attach_event(event.get(), SD_EVENT_PRIORITY_NORMAL);
+    ManagerInTest manager(bus, event, object.c_str(), type, verifyUnit,
+                          authoritiesListFolder);
+    EXPECT_CALL(manager, reloadOrReset(Eq(ManagerInTest::unitToRestartInTest)))
+        .Times(2);
+
+    manager.install(sourceAuthoritiesListFile);
+    auto& certs = manager.getCertificates();
+    ASSERT_EQ(certs.size(), maxNumAuthorityCertificates);
+
+    std::string deletedId = certs[3]->getCertId();
+    certs[3]->delete_();
+
+    ASSERT_EQ(certs.size(), maxNumAuthorityCertificates - 1);
+    EXPECT_FALSE(
+        fs::exists(authoritiesListFolder / (deletedId.substr(0, 8) + ".0")));
+    for (const auto& cert : certs)
+    {
+        EXPECT_NE(cert->getCertId(), deletedId);
+        std::string symbolLink =
+            authoritiesListFolder / (cert->getCertId().substr(0, 8) + ".0");
+        ASSERT_TRUE(fs::exists(symbolLink));
+        compareFileAgainstString(symbolLink, cert->certificateString());
+    }
+    eventLoop(3);
+}
+
+// Tests that the certificates of an installed bundle are restored as separate
+// objects at boot up
+TEST_F(AuthoritiesListTest, InstallBundleRestoredAtBootUp)
+{
+    std::string endpoint("truststore");
+    std::string verifyUnit(ManagerInTest::unitToRestartInTest);
+    CertificateType type = CertificateType::authority;
+
+    std::string object = std::string(objectNamePrefix) + '/' +
+                         certificateTypeToString(type) + '/' + endpoint;
+    auto event = sdeventplus::Event::get_default();
+    bus.attach_event(event.get(), SD_EVENT_PRIORITY_NORMAL);
+
+    // What the first boot leaves in persistent storage
+    fs::path persisted = authoritiesListFolder.string() + "_persisted";
+    fs::create_directory(persisted);
+    {
+        ManagerInTest manager(bus, event, object.c_str(), type, verifyUnit,
+                              authoritiesListFolder);
+        EXPECT_CALL(manager,
+                    reloadOrReset(Eq(ManagerInTest::unitToRestartInTest)))
+            .WillOnce(Return());
+        manager.install(sourceAuthoritiesListFile);
+        ASSERT_EQ(manager.getCertificates().size(),
+                  maxNumAuthorityCertificates);
+        eventLoop(3);
+        for (const auto& entry : fs::directory_iterator(authoritiesListFolder))
+        {
+            if (entry.is_regular_file() && !entry.is_symlink())
+            {
+                fs::copy_file(entry.path(),
+                              persisted / entry.path().filename());
+            }
+        }
+    }
+
+    ManagerInTest restored(bus, event, object.c_str(), type, verifyUnit,
+                           persisted);
+    auto& certs = restored.getCertificates();
+    ASSERT_EQ(certs.size(), maxNumAuthorityCertificates);
+    std::unordered_set<std::string> subjects;
+    for (const auto& cert : certs)
+    {
+        subjects.insert(cert->subject());
+        std::string symbolLink =
+            persisted / (cert->getCertId().substr(0, 8) + ".0");
+        ASSERT_TRUE(fs::exists(symbolLink));
+        compareFileAgainstString(symbolLink, cert->certificateString());
+    }
+    EXPECT_EQ(subjects.size(), maxNumAuthorityCertificates);
+
+    eventLoop(3);
+    fs::remove_all(persisted);
+}
+
 // Tests that the Authority Manager recovers from the authorities list persisted
 // in the installation path at boot up
 TEST_F(AuthoritiesListTest, RecoverAtBootUp)
