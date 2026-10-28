@@ -49,6 +49,7 @@ using ::phosphor::logging::commit;
 using ::phosphor::logging::elog;
 using ::phosphor::logging::report;
 
+using ::sdbusplus::xyz::openbmc_project::Certs::Error::CertificateAlreadyExists;
 using ::sdbusplus::xyz::openbmc_project::Certs::Error::CertificateLimitReached;
 using ::sdbusplus::xyz::openbmc_project::Certs::Error::InvalidCertificate;
 using ::sdbusplus::xyz::openbmc_project::Certs::Error::InvalidCommonName;
@@ -341,7 +342,7 @@ std::string Manager::install(const std::string filePath)
     }
     else
     {
-        elog<NotAllowed>(NotAllowedReason("Certificate already exist"));
+        elog<CertificateAlreadyExists>();
     }
 
     return certObjectPath;
@@ -383,8 +384,7 @@ std::string Manager::installAuthorityBundle(
             }
             if (!isCertificateUnique(certFile.string()))
             {
-                elog<NotAllowed>(
-                    NotAllowedReason("Certificate already exist"));
+                elog<CertificateAlreadyExists>();
             }
             std::string certObjectPath =
                 objectPath + '/' + std::to_string(certIdCounter);
@@ -635,7 +635,7 @@ void Manager::replaceCertificate(Certificate* const certificate,
     }
     else
     {
-        elog<NotAllowed>(NotAllowedReason("Certificate already exist"));
+        elog<CertificateAlreadyExists>();
     }
 }
 

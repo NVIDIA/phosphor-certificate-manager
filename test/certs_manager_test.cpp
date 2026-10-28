@@ -556,8 +556,8 @@ TEST_F(TestCertificates, InvokeInstallSameCertTwice)
     // Check that installed cert is identical to input one
     EXPECT_TRUE(compareFiles(certificateFile, verifyPath));
 
-    using NotAllowed =
-        sdbusplus::xyz::openbmc_project::Common::Error::NotAllowed;
+    using CertificateAlreadyExists = sdbusplus::xyz::openbmc_project::Certs::
+        Error::CertificateAlreadyExists;
     EXPECT_THROW(
         {
             try
@@ -565,12 +565,12 @@ TEST_F(TestCertificates, InvokeInstallSameCertTwice)
                 // Try to install the same certificate second time
                 mainApp.install(certificateFile);
             }
-            catch (const NotAllowed& e)
+            catch (const CertificateAlreadyExists& e)
             {
                 throw;
             }
         },
-        NotAllowed);
+        CertificateAlreadyExists);
 
     // Check that the original certificate has been not removed
     EXPECT_FALSE(fs::is_empty(verifyDir));
@@ -1935,9 +1935,9 @@ TEST_F(AuthoritiesListTest, InstallBundleDuplicateRollsBack)
     appendContentFromFile(dupBundle, root1);
     appendContentFromFile(dupBundle, root1);
 
-    using NotAllowed =
-        sdbusplus::xyz::openbmc_project::Common::Error::NotAllowed;
-    EXPECT_THROW(manager.install(dupBundle), NotAllowed);
+    using CertificateAlreadyExists = sdbusplus::xyz::openbmc_project::Certs::
+        Error::CertificateAlreadyExists;
+    EXPECT_THROW(manager.install(dupBundle), CertificateAlreadyExists);
     EXPECT_TRUE(manager.getCertificates().empty());
     eventLoop(3);
 }
