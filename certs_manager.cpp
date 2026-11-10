@@ -273,7 +273,10 @@ std::string Manager::install(const std::string filePath)
     {
         if (!installedCerts.empty())
         {
-            elog<NotAllowed>(NotAllowedReason("Certificate already exist"));
+            lg2::error(
+                "Certificate limit reached, installed:{INSTALLED}, max:{MAX}",
+                "INSTALLED", installedCerts.size(), "MAX", 1);
+            elog<CertificateLimitReached>();
         }
     }
     else if (((certType == CertificateType::authority) ||

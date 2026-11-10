@@ -1128,10 +1128,10 @@ TEST_F(TestInvalidCertificate, TestMissingCeritificate)
 /** @brief Check if error is thrown when multiple certificates are installed
  *  At present only one certificate per service is allowed
  */
-TEST_F(TestCertificates, TestCertInstallNotAllowed)
+TEST_F(TestCertificates, TestCertInstallLimitReached)
 {
-    using NotAllowed =
-        sdbusplus::xyz::openbmc_project::Common::Error::NotAllowed;
+    using CertificateLimitReached =
+        sdbusplus::xyz::openbmc_project::Certs::Error::CertificateLimitReached;
     std::string endpoint("ldap");
     CertificateType type = CertificateType::client;
     std::string installPath(certDir + "/" + certificateFile);
@@ -1154,12 +1154,12 @@ TEST_F(TestCertificates, TestCertInstallNotAllowed)
                 // install second certificate
                 mainApp.install(certificateFile);
             }
-            catch (const NotAllowed& e)
+            catch (const CertificateLimitReached& e)
             {
                 throw;
             }
         },
-        NotAllowed);
+        CertificateLimitReached);
     // Process D-Bus calls
     eventLoop(3);
 }
